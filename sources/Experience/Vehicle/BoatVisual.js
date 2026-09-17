@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import Experience from '../Experience.js';
 import { cloneModel, fitFootprint, bounds } from '../Utils/models.js';
 import Wake, { Splash } from './Wake.js';
+import { SAIL_COLORS, LANTERN_COLORS } from '../Utils/Progress.js';
 
 const HULL_LENGTH = 4.2;
 
@@ -35,6 +36,24 @@ export default class BoatVisual {
 
         this.wake = new Wake(this.scene, this.ocean);
         this.splash = new Splash(this.scene);
+
+        this.applyColours();
+        this.experience.on('progress:select', () => this.applyColours());
+        this.experience.on('progress:change', () => this.applyColours());
+    }
+
+    /** Sail dye + lantern hue chosen in the Chart menu (unlocked with doubloons). */
+    applyColours() {
+        const progress = this.experience.progress;
+        if (!progress) return;
+        const sel = progress.selected;
+        const sail = SAIL_COLORS.find((c) => c.id === sel.sail) || SAIL_COLORS[0];
+        if (this.sailMesh) this.sailMesh.material.color.setHex(sail.hex);
+        const lan = LANTERN_COLORS.find((c) => c.id === sel.lantern) || LANTERN_COLORS[0];
+        if (this.lantern) {
+            this.lantern.color.setHex(lan.hex);
+            this.lanternGlow.material.emissive.setHex(lan.hex);
+        }
     }
 
     /**

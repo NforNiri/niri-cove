@@ -295,6 +295,9 @@ export default class IslandBase {
     /** Override per island. */
     dress() {}
 
+    /** Override per island: add proximity actions to the Interactables registry. */
+    registerQuest(interactables) {}
+
     update() {
         const t = this.time.elapsed / 1000;
         for (const a of this.animated) {

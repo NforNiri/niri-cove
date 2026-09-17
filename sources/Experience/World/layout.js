@@ -52,6 +52,31 @@ export const SHOALS = [
     { x: 36, z: -50, radius: 4 },
 ];
 
+// Twenty doubloons: most along the sailing lanes between the lagoon and the
+// piers, a few tucked behind shoals and by the wreck for the thorough.
+export const DOUBLOONS = [
+    { id: 'd01', x: 10,  z: -20 },
+    { id: 'd02', x: -12, z: -24 },
+    { id: 'd03', x: 24,  z: 4 },
+    { id: 'd04', x: -26, z: 6 },
+    { id: 'd05', x: 14,  z: 22 },
+    { id: 'd06', x: -14, z: 24 },
+    { id: 'd07', x: 0,   z: 46 },
+    { id: 'd08', x: 40,  z: -32 },
+    { id: 'd09', x: 22,  z: -30 },
+    { id: 'd10', x: -30, z: -30 },
+    { id: 'd11', x: 8,   z: -60 },
+    { id: 'd12', x: 58,  z: 0 },
+    { id: 'd13', x: 60,  z: 24,  hidden: true },   // behind the east shoal
+    { id: 'd14', x: -56, z: 20,  hidden: true },   // behind the west shoal
+    { id: 'd15', x: -41, z: 48,  hidden: true },   // by the wreck
+    { id: 'd16', x: 16,  z: 66,  hidden: true },   // south sandbar
+    { id: 'd17', x: -18, z: -62, hidden: true },   // north sandbar
+    { id: 'd18', x: 30,  z: -52, hidden: true },   // Treasure rock's shadow
+    { id: 'd19', x: -2,  z: 18 },
+    { id: 'd20', x: 46,  z: 40 },
+];
+
 /**
  * Signed distance from (x, z) to the nearest shoreline (negative = on land).
  */

@@ -1086,6 +1086,577 @@ kbd {
 }
 
 /* ==========================================================================
+   Treasure map HUD + full chart
+   ========================================================================== */
+#treasure-map {
+    position: fixed;
+    top: 14px;
+    right: 14px;
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    transition: opacity 0.4s;
+}
+
+.map-disc {
+    position: relative;
+    width: 156px;
+    height: 156px;
+    border-radius: 50%;
+    border: 3px solid var(--wood);
+    padding: 0;
+    cursor: pointer;
+    overflow: hidden;
+    box-shadow:
+        inset 0 0 0 4px rgba(139, 90, 43, 0.25),
+        inset 0 0 30px rgba(139, 90, 43, 0.25),
+        0 8px 22px rgba(0, 0, 0, 0.35);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.map-disc:hover {
+    transform: scale(1.03);
+}
+
+.map-canvas {
+    display: block;
+    border-radius: 50%;
+}
+
+.map-n {
+    position: absolute;
+    top: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: var(--font-heading);
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--wood-dark);
+    letter-spacing: 1px;
+    pointer-events: none;
+}
+
+.map-compass-label {
+    font-family: var(--font-heading);
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: rgba(246, 236, 212, 0.92);
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+    white-space: nowrap;
+}
+
+.map-compass-label.is-done {
+    color: var(--gold);
+}
+
+.map-counter {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 11px 4px 8px;
+    border-radius: 14px;
+    background: rgba(8, 38, 40, 0.5);
+    border: 1px solid rgba(234, 216, 177, 0.35);
+    font-family: var(--font-heading);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--gold);
+    backdrop-filter: blur(3px);
+}
+
+.map-coin {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #FFE2A0, #E3B341 55%, #A8781C);
+    box-shadow: 0 0 6px rgba(227, 179, 65, 0.6);
+}
+
+.map-counter.is-complete {
+    border-color: var(--gold);
+    box-shadow: 0 0 12px rgba(227, 179, 65, 0.5);
+}
+
+.map-counter.is-bumping {
+    animation: counter-bump 0.5s ease-out;
+}
+
+@keyframes counter-bump {
+    0% { transform: scale(1); }
+    35% { transform: scale(1.22); }
+    100% { transform: scale(1); }
+}
+
+#treasure-map.is-pulsing .map-disc {
+    animation: map-pulse 1.2s ease-in-out 4;
+}
+
+@keyframes map-pulse {
+    0%, 100% { box-shadow: inset 0 0 0 4px rgba(139, 90, 43, 0.25), inset 0 0 30px rgba(139, 90, 43, 0.25), 0 8px 22px rgba(0, 0, 0, 0.35); }
+    50% { box-shadow: inset 0 0 0 4px rgba(139, 90, 43, 0.25), inset 0 0 30px rgba(139, 90, 43, 0.25), 0 0 0 8px rgba(179, 50, 46, 0.45), 0 8px 22px rgba(0, 0, 0, 0.35); }
+}
+
+#chart-overlay,
+#commendation {
+    position: fixed;
+    inset: 0;
+    z-index: 320;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.chart-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(8, 38, 40, 0.72);
+    backdrop-filter: blur(6px);
+}
+
+.chart-sheet,
+.commendation-sheet {
+    position: relative;
+    width: min(92vw, 720px);
+    max-height: 94vh;
+    max-height: 94dvh;
+    overflow-y: auto;
+    border: 3px solid var(--wood);
+    border-radius: 14px;
+    padding: 26px 28px 22px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+    text-align: center;
+}
+
+.commendation-sheet {
+    width: min(94vw, 860px);
+}
+
+.chart-close {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 2px solid var(--rope);
+    background: transparent;
+    color: var(--wood-dark);
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.chart-eyebrow {
+    font-family: var(--font-heading);
+    font-size: 10px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+}
+
+.chart-title {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 40px;
+    line-height: 1;
+    color: var(--ink);
+    margin: 4px 0 14px;
+}
+
+.chart-canvas-wrap {
+    position: relative;
+    display: inline-block;
+    line-height: 0;
+}
+
+.chart-canvas {
+    display: block;
+    border-radius: 50%;
+    border: 2px solid var(--rope);
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.chart-hotspots {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.chart-hotspots > * {
+    pointer-events: auto;
+}
+
+.chart-hotspot {
+    position: absolute;
+    border-radius: 50%;
+    border: 2px dashed transparent;
+    background: transparent;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.chart-hotspot:hover {
+    border-color: var(--wax, #B3322E);
+    background: rgba(179, 50, 46, 0.12);
+}
+
+.chart-stats {
+    display: flex;
+    justify-content: center;
+    gap: 18px;
+    margin: 16px 0 6px;
+    flex-wrap: wrap;
+}
+
+.chart-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 84px;
+}
+
+.chart-stat-n {
+    font-family: var(--font-display);
+    font-size: 26px;
+    color: #B3322E;
+    line-height: 1;
+}
+
+.chart-stat-l {
+    font-family: var(--font-heading);
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-top: 4px;
+}
+
+.chart-hint {
+    font-size: 12px;
+    color: var(--ink-faint);
+}
+
+/* Commendation */
+.commendation-canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    border: 2px solid var(--rope);
+    border-radius: 8px;
+    margin: 6px 0 14px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.commendation-text {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--ink-soft);
+    max-width: 640px;
+    margin: 0 auto 16px;
+}
+
+.commendation-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+}
+
+.commendation-actions .contact-btn {
+    cursor: pointer;
+    font-family: var(--font-body);
+}
+
+/* ==========================================================================
+   Onboarding hints + interact prompt
+   ========================================================================== */
+#hint-bar,
+#interact-prompt {
+    position: fixed;
+    /* centred with auto margins so GSAP owns the transform */
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    width: max-content;
+    max-width: calc(100vw - 28px);
+    z-index: 190;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 16px;
+    border: 2px solid var(--rope);
+    border-radius: 24px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+    font-family: var(--font-heading);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--wood-dark);
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+#hint-bar {
+    bottom: calc(22px + env(safe-area-inset-bottom));
+}
+
+#interact-prompt {
+    bottom: calc(70px + env(safe-area-inset-bottom));
+    pointer-events: auto;
+    cursor: pointer;
+    border-color: var(--gold);
+    box-shadow: 0 0 0 0 rgba(227, 179, 65, 0.5), 0 6px 18px rgba(0, 0, 0, 0.3);
+    animation: prompt-glow 1.8s ease-in-out infinite;
+}
+
+#interact-prompt.is-done {
+    animation: none;
+    border-color: var(--rope);
+}
+
+@keyframes prompt-glow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(227, 179, 65, 0.5), 0 6px 18px rgba(0, 0, 0, 0.3); }
+    50% { box-shadow: 0 0 0 7px rgba(227, 179, 65, 0.0), 0 6px 18px rgba(0, 0, 0, 0.3); }
+}
+
+.hint-keys:empty {
+    display: none;
+}
+
+.hint-keys kbd,
+#interact-prompt kbd {
+    height: 22px;
+    min-width: 22px;
+    font-size: 9.5px;
+}
+
+/* Chart menu additions: swatches, notes */
+.menu-note {
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin-bottom: 10px;
+}
+
+.colour-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 0;
+}
+
+.colour-row + .colour-row {
+    border-top: 1px solid rgba(139, 90, 43, 0.2);
+}
+
+.swatches {
+    display: flex;
+    gap: 8px;
+}
+
+.swatch {
+    position: relative;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 2px solid rgba(90, 58, 30, 0.5);
+    background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.55), transparent 40%), var(--swatch);
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.swatch:hover {
+    transform: translateY(-2px);
+}
+
+.swatch.is-active {
+    box-shadow: 0 0 0 3px var(--parchment), 0 0 0 5px var(--wood);
+}
+
+.swatch.is-locked {
+    filter: saturate(0.25) brightness(0.85);
+    cursor: not-allowed;
+}
+
+.swatch-lock {
+    display: none;
+    position: absolute;
+    inset: 0;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+}
+
+.swatch.is-locked .swatch-lock {
+    display: flex;
+}
+
+/* Captain's Log journal */
+.log-list,
+.log-rewards {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.log-entry {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 9px 10px;
+    border: 1px dashed var(--rope);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.log-entry.is-done {
+    border-style: solid;
+    background: rgba(255, 255, 255, 0.22);
+}
+
+.log-seal {
+    flex: 0 0 22px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 2px solid var(--rope);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: #fff;
+}
+
+.log-entry.is-done .log-seal {
+    background: #B3322E;
+    border-color: #8E2622;
+}
+
+.log-entry-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 13px;
+}
+
+.log-where,
+.log-hint {
+    font-size: 11.5px;
+    color: var(--ink-soft);
+}
+
+.log-hint {
+    font-style: italic;
+}
+
+.log-reward {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    font-size: 13px;
+    color: var(--ink-soft);
+}
+
+.log-reward.is-done {
+    color: var(--ink);
+}
+
+.log-reward-at {
+    flex: 0 0 34px;
+    text-align: center;
+    font-family: var(--font-display);
+    font-size: 16px;
+    color: var(--gold);
+}
+
+.log-reward.is-done .log-reward-at {
+    color: #B3322E;
+}
+
+.tag-done {
+    background: rgba(179, 50, 46, 0.14);
+    border-color: rgba(179, 50, 46, 0.5);
+}
+
+.tag-todo {
+    opacity: 0.6;
+}
+
+@media (max-width: 1023px), (pointer: coarse) {
+    #treasure-map {
+        top: calc(56px + env(safe-area-inset-top));
+        right: 10px;
+        gap: 4px;
+    }
+
+    .map-disc {
+        width: 96px;
+        height: 96px;
+        border-width: 2px;
+    }
+
+    .map-canvas {
+        width: 96px !important;
+        height: 96px !important;
+    }
+
+    .map-compass-label {
+        font-size: 8px;
+        max-width: 110px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .map-counter {
+        font-size: 10px;
+        padding: 3px 9px 3px 7px;
+    }
+
+    #hint-bar {
+        bottom: auto;
+        top: calc(60px + env(safe-area-inset-top));
+        left: 14px;
+        right: auto;
+        margin: 0;
+        font-size: 9.5px;
+        max-width: calc(100vw - 150px);
+        white-space: normal;
+        text-align: left;
+    }
+
+    #interact-prompt {
+        bottom: auto;
+        top: calc(110px + env(safe-area-inset-top));
+        left: 14px;
+        right: auto;
+        margin: 0;
+        font-size: 9.5px;
+    }
+
+    #interact-prompt kbd {
+        display: none;
+    }
+
+    .chart-sheet,
+    .commendation-sheet {
+        padding: 20px 14px 16px;
+    }
+
+    .chart-title {
+        font-size: 30px;
+    }
+}
+
+/* ==========================================================================
    Intro tour overlay (title card, vignette, skip)
    ========================================================================== */
 #intro-overlay {
@@ -1257,6 +1828,27 @@ body.panel-open #audio-chip {
 
 body.panel-open #menu-btn {
     visibility: hidden;
+    pointer-events: none;
+}
+
+/* Slide the treasure map out of the panel's way on desktop; hide it on phones */
+body.panel-open #treasure-map {
+    right: 454px;
+    transition: right 0.5s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.4s;
+}
+
+@media (max-width: 1023px), (pointer: coarse) {
+    body.panel-open #treasure-map,
+    body.panel-open #hint-bar,
+    body.panel-open #interact-prompt {
+        opacity: 0 !important;
+        pointer-events: none;
+    }
+}
+
+body.chart-open #treasure-map,
+body.menu-open #treasure-map {
+    opacity: 0;
     pointer-events: none;
 }
 

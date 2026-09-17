@@ -18,6 +18,8 @@ export default class Controls {
 
         // While true (intro tour) the boat ignores input
         this.locked = false;
+        // One-shot interact press (E / act button), consumed by Interactables
+        this.interactQueued = false;
 
         this.isMobile = this.detectMobile();
 
@@ -71,8 +73,23 @@ export default class Controls {
                     this.experience.audio.toggleMute();
                 }
                 break;
+            case 'KeyE':
+                if (isPressed && !event.repeat) this.interactQueued = true;
+                break;
         }
         this.syncAxisFromKeys();
+    }
+
+    /** Returns true once per interact press. */
+    consumeInteract() {
+        if (!this.interactQueued) return false;
+        this.interactQueued = false;
+        return true;
+    }
+
+    /** Mobile: show the act button only while something can be done. */
+    setActVisible(visible) {
+        if (this.actBtn) this.actBtn.classList.toggle('is-visible', visible);
     }
 
     syncAxisFromKeys() {
@@ -94,6 +111,9 @@ export default class Controls {
                 </div>
             </div>
             <div class="action-zone" id="action-zone">
+                <button class="touch-btn act-btn" id="act-btn" aria-label="Act">
+                    <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.2 5.4 5.8.5-4.4 3.8 1.3 5.7L12 15.4l-4.9 3 1.3-5.7L4 8.9l5.8-.5z"/></svg>
+                </button>
                 <button class="touch-btn boost-btn" id="boost-btn" aria-label="Full sail">
                     <svg viewBox="0 0 24 24" width="26" height="26"><path d="M6 20h12M12 3v15M12 4c5 1 7 6 7 10H12z" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
                 </button>
@@ -210,6 +230,19 @@ export default class Controls {
                 box-shadow: 0 0 18px rgba(95,211,194,0.45);
             }
 
+            .act-btn {
+                display: none;
+                border-color: #E3B341;
+                color: #F6ECD4;
+                box-shadow: 0 0 18px rgba(227,179,65,0.45);
+                animation: act-glow 1.6s ease-in-out infinite;
+            }
+            .act-btn.is-visible { display: flex; }
+            @keyframes act-glow {
+                0%, 100% { box-shadow: 0 0 10px rgba(227,179,65,0.35); }
+                50% { box-shadow: 0 0 24px rgba(227,179,65,0.75); }
+            }
+
             @media (min-width: 769px) and (hover: hover) {
                 #touch-controls { display: none !important; }
             }
@@ -306,5 +339,15 @@ export default class Controls {
 
         bind(document.getElementById('boost-btn'), 'boost');
         bind(document.getElementById('brake-btn'), 'brake');
+
+        this.actBtn = document.getElementById('act-btn');
+        this.actBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            this.interactQueued = true;
+            this.actBtn.classList.add('active');
+        }, { passive: false });
+        const releaseAct = (e) => { e.preventDefault(); this.actBtn.classList.remove('active'); };
+        this.actBtn.addEventListener('touchend', releaseAct, { passive: false });
+        this.actBtn.addEventListener('touchcancel', releaseAct, { passive: false });
     }
 }

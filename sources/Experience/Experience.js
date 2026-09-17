@@ -9,6 +9,8 @@ import Physics from './Physics.js';
 import Controls from './Controls.js';
 import LoadingScreen from './LoadingScreen.js';
 import Audio from './Audio.js';
+import Progress from './Utils/Progress.js';
+import Analytics from './Utils/Analytics.js';
 import World from './World/World.js';
 import StatsGL from 'stats-gl';
 import sources from './sources.js';
@@ -37,6 +39,8 @@ export default class Experience {
 
         this.sizes = new Sizes();
         this.time = new Time();
+        this.progress = new Progress();
+        this.analytics = new Analytics();
         this.resources = new Resources(sources);
 
         this.scene = new THREE.Scene();

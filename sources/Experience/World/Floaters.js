@@ -3,11 +3,13 @@ import * as RAPIER from '@dimforge/rapier3d';
 import gsap from 'gsap';
 import Experience from '../Experience.js';
 import { cloneModel, fitFootprint } from '../Utils/models.js';
+import { DOUBLOONS } from './layout.js';
+import { DOUBLOON_TOTAL } from '../Utils/Progress.js';
 
 /**
  * Things that float in the lagoon:
  *  - pushable barrels/crates (dynamic bodies with single-point buoyancy)
- *  - eight collectible doubloons that bob on the swell
+ *  - twenty collectible doubloons that bob on the swell (persisted in Progress)
  */
 export default class Floaters {
     constructor(ocean, boat) {
@@ -16,16 +18,15 @@ export default class Floaters {
         this.physics = this.experience.physics;
         this.resources = this.experience.resources;
         this.time = this.experience.time;
+        this.progress = this.experience.progress;
         this.ocean = ocean;
         this.boat = boat;
 
         this.pushables = [];
         this.coins = [];
-        this.collected = 0;
 
         this.createPushables();
         this.createDoubloons();
-        this.createToast();
 
         this.experience.addUpdate(6, () => this.update());
     }
@@ -67,11 +68,6 @@ export default class Floaters {
     }
 
     createDoubloons() {
-        const positions = [
-            [10, -20], [-12, -24], [24, 4], [-26, 6],
-            [14, 22], [-14, 24], [0, 46], [40, -32],
-        ];
-
         const geo = new THREE.CylinderGeometry(0.42, 0.42, 0.08, 18);
         // No environment map, so keep metalness low or the coin renders black
         const mat = new THREE.MeshStandardMaterial({
@@ -82,7 +78,10 @@ export default class Floaters {
             emissiveIntensity: 0.6,
         });
 
-        for (const [x, z] of positions) {
+        for (const d of DOUBLOONS) {
+            // Already found on a previous visit
+            if (this.progress.hasDoubloon(d.id)) continue;
+            const { x, z } = d;
             const group = new THREE.Group();
             group.position.set(x, 0, z);
 
@@ -100,28 +99,12 @@ export default class Floaters {
             group.add(ring);
 
             this.scene.add(group);
-            this.coins.push({ group, coin, ring, collected: false, phase: Math.random() * 6 });
+            this.coins.push({ id: d.id, group, coin, ring, collected: false, phase: Math.random() * 6 });
         }
-        this.totalCoins = this.coins.length;
-    }
-
-    createToast() {
-        this.toast = document.createElement('div');
-        this.toast.className = 'collect-toast';
-        this.toast.style.opacity = '0';
-        document.body.appendChild(this.toast);
-    }
-
-    showToast(text) {
-        this.toast.textContent = text;
-        gsap.killTweensOf(this.toast);
-        gsap.fromTo(this.toast, { opacity: 0, y: -10 }, { opacity: 1, y: 0, duration: 0.4, ease: 'power2.out' });
-        gsap.to(this.toast, { opacity: 0, delay: 2.2, duration: 0.5, ease: 'power2.in' });
     }
 
     collect(c) {
         c.collected = true;
-        this.collected++;
 
         gsap.to(c.group.position, { y: c.group.position.y + 2.2, duration: 0.6, ease: 'power2.out' });
         gsap.to(c.group.scale, {
@@ -130,11 +113,14 @@ export default class Floaters {
         });
 
         if (this.experience.audio) this.experience.audio.playCollect();
+        this.progress.collectDoubloon(c.id);
 
-        if (this.collected === this.totalCoins) {
-            this.showToast('ALL DOUBLOONS RECOVERED — THE COVE IS YOURS');
-        } else {
-            this.showToast(`${this.collected} / ${this.totalCoins} DOUBLOONS`);
+        const ui = this.experience.world ? this.experience.world.ui : null;
+        const n = this.progress.doubloons;
+        if (ui) {
+            if (n >= DOUBLOON_TOTAL) ui.toast('ALL DOUBLOONS RECOVERED — THE COVE IS YOURS', 3600);
+            else ui.toast(`${n} / ${DOUBLOON_TOTAL} DOUBLOONS`);
+            if (ui.treasureMap) ui.treasureMap.bumpCounter();
         }
     }
 

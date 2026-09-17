@@ -187,6 +187,17 @@ export default class Camera {
 
     // ── Frame update ─────────────────────────────────────────────────────
 
+    /**
+     * Swing the orbit behind a boat heading `yaw` (Boat.reset convention) so a
+     * teleport lands with the island ahead, not behind the lens.
+     */
+    frameBehind(yaw, snap = false) {
+        if (this.cinematicMode) return;
+        // Boat forward is (-sin yaw, -cos yaw); camera-controls azimuth puts the
+        // camera at (sin az, cos az) from the target, i.e. behind for az = yaw.
+        this.controls.rotateAzimuthTo(yaw, !snap);
+    }
+
     update() {
         const dt = Math.min(this.time.delta / 1000, 0.1);
 

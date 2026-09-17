@@ -95,6 +95,33 @@ export default class ContactIsland extends IslandBase {
         this.bell.position.y = 1.42;
         g.add(this.bell);
         this.group.add(g);
+        this.bellWorld = { x: this.data.x + x, z: this.data.z + z };
+        this.bellSwing = 0;
+    }
+
+    registerQuest(interactables) {
+        interactables.add({
+            id: 'bell',
+            x: this.data.dock.x,
+            z: this.data.dock.z,
+            radius: 9,
+            label: 'Ring the bell',
+            repeatLabel: 'Ring again',
+            action: () => this.ringBell(),
+        });
+    }
+
+    ringBell() {
+        const audio = this.experience.audio;
+        if (audio) audio.playAt('bell', this.bellWorld.x, this.bellWorld.z, { maxDist: 80, volume: 1.4 });
+        this.bellSwing = 1;
+        // The keeper answers with a flash of the lamp
+        this.lampFlash = 1;
+        const ui = this.experience.world ? this.experience.world.ui : null;
+        if (ui && !this.experience.progress.hasQuest('bell')) {
+            setTimeout(() => ui.toast('THE KEEPER IS LISTENING — SAY HELLO', 2600), 1200);
+        }
+        return new Promise((resolve) => setTimeout(resolve, 900));
     }
 
     update() {
@@ -111,11 +138,15 @@ export default class ContactIsland extends IslandBase {
                 this.lampPos.y - 4,
                 this.lampPos.z + Math.sin(this.beamAngle) * r
             );
-            this.beam.intensity = high ? night * 60 : 0;
-            this.lampMat.emissiveIntensity = 0.6 + night * 2.5 + Math.sin(t * 3) * 0.2 * night;
+            const flash = this.lampFlash || 0;
+            this.beam.intensity = high ? night * 60 + flash * 40 : 0;
+            this.lampMat.emissiveIntensity = 0.6 + night * 2.5 + Math.sin(t * 3) * 0.2 * night + flash * 4;
+            if (flash > 0) this.lampFlash = Math.max(0, flash - this.time.delta / 1000 / 1.2);
         }
         if (this.bell) {
-            this.bell.rotation.x = Math.sin(t * 1.3) * 0.08;
+            const swing = this.bellSwing || 0;
+            this.bell.rotation.x = Math.sin(t * 1.3) * 0.08 + Math.sin(t * 14) * 0.55 * swing;
+            if (swing > 0) this.bellSwing = Math.max(0, swing - this.time.delta / 1000 / 2.2);
         }
     }
 }

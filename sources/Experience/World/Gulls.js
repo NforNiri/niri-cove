@@ -31,7 +31,26 @@ export default class Gulls {
         });
 
         this.nextCry = 6;
+
+        // Companion gull: unlocked at 10 doubloons, follows the boat
+        this.companion = null;
+        const progress = this.experience.progress;
+        if (progress && progress.hasReward('gull')) this.addCompanion();
+        this.experience.on('progress:unlock', (r) => { if (r.id === 'gull') this.addCompanion(); });
+
         this.experience.addUpdate(7, () => this.update());
+    }
+
+    addCompanion() {
+        if (this.companion) return;
+        const g = this.makeGull({ x: 0, z: 0, radius: 4 }, 9, 0);
+        g.companion = true;
+        g.radius = 3.2;
+        g.height = 3.6;
+        g.speed = 0.9;
+        g.flap = 7;
+        this.gulls.push(g);
+        this.companion = g;
     }
 
     makeGull(island, flockIndex, i) {
@@ -81,6 +100,14 @@ export default class Gulls {
             const g = this.gulls[Math.floor(Math.random() * this.gulls.length)];
             const audio = this.experience.audio;
             if (audio) audio.playAt('gull', g.body.position.x, g.body.position.z, { maxDist: 70, volume: 0.9 });
+        }
+
+        const boat = this.experience.world ? this.experience.world.boat : null;
+        if (this.companion && boat && boat.rigidBody) {
+            const p = boat.getPosition();
+            // Lag behind the boat a little so it reads as following
+            this.companion.cx += (p.x - boat.forward.x * 2 - this.companion.cx) * 0.06;
+            this.companion.cz += (p.z - boat.forward.z * 2 - this.companion.cz) * 0.06;
         }
 
         for (const g of this.gulls) {

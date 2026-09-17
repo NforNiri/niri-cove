@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import gsap from 'gsap';
 import IslandBase from './IslandBase.js';
 
 /**
@@ -63,7 +64,7 @@ export default class CreativeIsland extends IslandBase {
 
         this.screenMat = new THREE.ShaderMaterial({
             side: THREE.DoubleSide,
-            uniforms: { uTime: { value: 0 }, uNight: { value: 0 } },
+            uniforms: { uTime: { value: 0 }, uNight: { value: 0 }, uOn: { value: 0 }, uVideo: { value: null }, uHasVideo: { value: 0 } },
             vertexShader: /* glsl */ `
                 uniform float uTime;
                 varying vec2 vUv;
@@ -77,15 +78,25 @@ export default class CreativeIsland extends IslandBase {
             fragmentShader: /* glsl */ `
                 uniform float uTime;
                 uniform float uNight;
+                uniform float uOn;
+                uniform sampler2D uVideo;
+                uniform float uHasVideo;
                 varying vec2 vUv;
                 void main() {
                     vec3 cloth = vec3(0.93, 0.88, 0.76);
-                    // A slow "projection": drifting colour bands that only glow at night
+                    // A slow "projection": drifting colour bands. Glows at night on
+                    // its own, or any time once the projector has been started.
                     float band = sin(vUv.x * 8.0 + uTime * 0.8) * 0.5 + 0.5;
                     float band2 = sin(vUv.y * 5.0 - uTime * 0.6 + vUv.x * 3.0) * 0.5 + 0.5;
                     vec3 proj = mix(vec3(1.0, 0.55, 0.26), vec3(0.37, 0.83, 0.76), band) * (0.5 + 0.5 * band2);
+                    if (uHasVideo > 0.5) {
+                        vec3 v = texture2D(uVideo, vec2(vUv.x, vUv.y)).rgb;
+                        proj = mix(proj, v * 1.15, 0.9);
+                    }
+                    float flicker = 0.92 + 0.08 * sin(uTime * 23.0) * sin(uTime * 7.0);
                     float vignette = smoothstep(0.0, 0.15, vUv.x) * smoothstep(1.0, 0.85, vUv.x) * smoothstep(0.0, 0.15, vUv.y) * smoothstep(1.0, 0.85, vUv.y);
-                    vec3 col = mix(cloth, cloth * 0.4 + proj * 1.1, uNight * vignette);
+                    float show = max(uNight, uOn) * vignette;
+                    vec3 col = mix(cloth, cloth * 0.35 + proj * 1.15 * flicker, show);
                     gl_FragColor = vec4(col, 1.0);
                     #include <tonemapping_fragment>
                     #include <colorspace_fragment>
@@ -99,6 +110,44 @@ export default class CreativeIsland extends IslandBase {
 
         // Screen glow onto the stage at night
         this.screenLight = this.addLight(stage.x, y + 1.5, stage.z, { color: 0xFFB27A, intensity: 3, distance: 9 });
+        this.screenWorld = { x: this.data.x + stage.x, z: this.data.z + stage.z };
+
+        // Projector: off until started (remembered across visits)
+        this.projectorOn = 0;
+        if (this.experience.audio) {
+            this.projectorEmitter = this.experience.audio.addEmitter({
+                key: 'projector', x: this.screenWorld.x, z: this.screenWorld.z, maxDist: 24, volume: 0.35, enabled: false,
+            });
+        }
+        if (this.experience.progress && this.experience.progress.hasQuest('projector')) this.setProjector(1);
+    }
+
+    setProjector(v) {
+        this.projectorOn = v;
+        this.screenMat.uniforms.uOn.value = v;
+        if (this.projectorEmitter) this.projectorEmitter.enabled = v > 0.5;
+    }
+
+    registerQuest(interactables) {
+        interactables.add({
+            id: 'projector',
+            x: this.data.dock.x,
+            z: this.data.dock.z,
+            radius: 9,
+            label: 'Start the projector',
+            action: () => this.startProjector(),
+        });
+    }
+
+    startProjector() {
+        return new Promise((resolve) => {
+            const s = { v: 0 };
+            gsap.to(s, {
+                v: 1, duration: 1.4, ease: 'steps(6)',
+                onUpdate: () => this.setProjector(s.v),
+                onComplete: () => { this.setProjector(1); resolve(); },
+            });
+        });
     }
 
     buildLantern(x, z, i) {
@@ -132,10 +181,16 @@ export default class CreativeIsland extends IslandBase {
             this.screenMat.uniforms.uTime.value = t;
             this.screenMat.uniforms.uNight.value = night;
         }
+        const glow = Math.max(night, this.projectorOn || 0);
         if (this.lanterns) {
             for (let i = 0; i < this.lanterns.length; i++) {
-                this.lanterns[i].material.emissiveIntensity = 0.2 + night * (1.6 + Math.sin(t * 6 + i) * 0.3);
+                this.lanterns[i].material.emissiveIntensity = 0.2 + glow * (1.6 + Math.sin(t * 6 + i) * 0.3);
             }
+        }
+        if (this.screenLight && this.projectorOn > 0) {
+            // The screen throws light on the stage even by day once it is running
+            this.screenLight.visible = true;
+            this.screenLight.intensity = Math.max(this.screenLight.intensity, 3 * this.projectorOn * (0.6 + 0.4 * Math.sin(t * 9)));
         }
     }
 }

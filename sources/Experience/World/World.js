@@ -5,6 +5,7 @@ import Zone from './Zone.js';
 import Floaters from './Floaters.js';
 import Shoals from './Shoals.js';
 import Gulls from './Gulls.js';
+import Interactables from './Interactable.js';
 import Boat from '../Vehicle/Boat.js';
 import BoatVisual from '../Vehicle/BoatVisual.js';
 import { buildIslands } from './islands/index.js';
@@ -52,5 +53,9 @@ export default class World {
         });
 
         this.ui = new UI();
+
+        // Island deeds (micro-quests)
+        this.interactables = new Interactables(this.boat);
+        for (const island of this.islands) island.registerQuest(this.interactables);
     }
 }

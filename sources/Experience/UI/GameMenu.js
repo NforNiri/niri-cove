@@ -1,24 +1,20 @@
 import gsap from 'gsap';
 import Experience from '../Experience.js';
-import { ISLANDS, SPAWN } from '../World/layout.js';
+import { SAIL_COLORS, LANTERN_COLORS, REWARDS, DOUBLOON_TOTAL } from '../Utils/Progress.js';
 
-const ICONS = {
-    about: '⌂',
-    work: '⚒',
-    creative: '✦',
-    resume: '✕',
-    contact: '☼',
-    spawn: '⚓',
-};
+const hex = (n) => `#${n.toString(16).padStart(6, '0')}`;
 
 export default class GameMenu {
     constructor(ui) {
         this.experience = Experience.getInstance();
+        this.progress = this.experience.progress;
         this.ui = ui;
         this.isOpen = false;
 
         this.createElement();
         this.bindEvents();
+
+        this.experience.on('progress:change', () => { if (this.isOpen) this.updateColours(); });
     }
 
     createElement() {
@@ -33,14 +29,6 @@ export default class GameMenu {
         `;
         document.body.appendChild(this.menuBtn);
 
-        const islandButtons = ISLANDS.map((i) => `
-            <button class="nav-btn" data-zone="${i.id}">
-                <span class="nav-icon">${ICONS[i.id]}</span>
-                <span class="nav-label">${i.label}</span>
-                <span class="nav-sub">${i.subtitle}</span>
-            </button>
-        `).join('');
-
         this.overlay = document.createElement('div');
         this.overlay.id = 'game-menu';
         this.overlay.innerHTML = `
@@ -51,26 +39,39 @@ export default class GameMenu {
                 <div class="menu-header">
                     <p class="menu-eyebrow">The Chart</p>
                     <h2 class="menu-title">Niri's Cove</h2>
-                    <p class="menu-subtitle">Sail to an island &bull; Settings &bull; Helm</p>
+                    <p class="menu-subtitle">Treasure map &bull; Ship's colours &bull; Settings &bull; Helm</p>
                 </div>
 
                 <div class="menu-body">
                     <div class="menu-section">
-                        <h3 class="menu-section-title">Sail to</h3>
-                        <div class="nav-grid" id="nav-grid">
-                            ${islandButtons}
-                            <button class="nav-btn nav-btn-spawn" data-zone="spawn">
-                                <span class="nav-icon">${ICONS.spawn}</span>
-                                <span class="nav-label">The Lagoon</span>
-                                <span class="nav-sub">Start</span>
-                            </button>
+                        <h3 class="menu-section-title">Navigation</h3>
+                        <button class="log-btn" id="menu-map-btn">
+                            <span>Open the treasure map &mdash; sail to any island</span>
+                            <span class="log-arrow">→</span>
+                        </button>
+                    </div>
+
+                    <div class="menu-section">
+                        <h3 class="menu-section-title">Ship's colours</h3>
+                        <p class="menu-note" id="menu-colours-note"></p>
+                        <div class="colour-row">
+                            <span class="settings-label">Sail</span>
+                            <div class="swatches" id="sail-swatches"></div>
+                        </div>
+                        <div class="colour-row">
+                            <span class="settings-label">Lantern</span>
+                            <div class="swatches" id="lantern-swatches"></div>
                         </div>
                     </div>
 
                     <div class="menu-section">
                         <h3 class="menu-section-title">Captain's Log</h3>
                         <button class="log-btn" id="menu-log-btn">
-                            <span>How this cove was built</span>
+                            <span>Deeds, discoveries and how this cove was built</span>
+                            <span class="log-arrow">→</span>
+                        </button>
+                        <button class="log-btn" id="menu-commendation-btn">
+                            <span>Captain's Commendation</span>
                             <span class="log-arrow">→</span>
                         </button>
                     </div>
@@ -105,12 +106,14 @@ export default class GameMenu {
                                 <h4 class="key-group-title">Actions</h4>
                                 <div class="key-row"><kbd>Shift</kbd><span>Full sail</span></div>
                                 <div class="key-row"><kbd>Space</kbd><span>Drop anchor</span></div>
+                                <div class="key-row"><kbd>E</kbd><span>Act / interact</span></div>
+                                <div class="key-row"><kbd>C</kbd><span>Treasure map</span></div>
                                 <div class="key-row"><kbd>M</kbd><span>Mute</span></div>
                                 <div class="key-row"><kbd>H</kbd><span>Quality</span></div>
                                 <div class="key-row"><kbd>ESC</kbd><span>Chart</span></div>
                             </div>
                         </div>
-                        <p class="mobile-note">On a phone: steer with the compass, full sail and anchor on the right.</p>
+                        <p class="mobile-note">On a phone: steer with the compass; full sail, anchor and act are on the right.</p>
                     </div>
                 </div>
             </div>
@@ -119,6 +122,54 @@ export default class GameMenu {
 
         gsap.set(this.overlay, { opacity: 0, visibility: 'hidden' });
         gsap.set(this.overlay.querySelector('.menu-container'), { y: 30, scale: 0.96 });
+
+        this.buildSwatches();
+    }
+
+    buildSwatches() {
+        const build = (container, list, kind) => {
+            container.innerHTML = list.map((c) => `
+                <button class="swatch" data-kind="${kind}" data-id="${c.id}" style="--swatch:${hex(c.hex)}" title="${c.label}" aria-label="${c.label}">
+                    <span class="swatch-lock">🔒</span>
+                </button>
+            `).join('');
+        };
+        build(this.overlay.querySelector('#sail-swatches'), SAIL_COLORS, 'sail');
+        build(this.overlay.querySelector('#lantern-swatches'), LANTERN_COLORS, 'lantern');
+        this.overlay.querySelectorAll('.swatch').forEach((b) => {
+            b.addEventListener('click', () => this.pickColour(b.dataset.kind, b.dataset.id));
+        });
+        this.updateColours();
+    }
+
+    updateColours() {
+        const sel = this.progress.selected;
+        this.overlay.querySelectorAll('.swatch').forEach((b) => {
+            const list = b.dataset.kind === 'sail' ? SAIL_COLORS : LANTERN_COLORS;
+            const c = list.find((k) => k.id === b.dataset.id);
+            const locked = !!c.reward && !this.progress.hasReward(c.reward);
+            b.classList.toggle('is-locked', locked);
+            b.classList.toggle('is-active', sel[b.dataset.kind] === c.id);
+        });
+        const n = this.progress.doubloons;
+        const next = REWARDS.find((r) => n < r.at);
+        const note = this.overlay.querySelector('#menu-colours-note');
+        note.textContent = next
+            ? `${n} / ${DOUBLOON_TOTAL} doubloons — ${next.at - n} more unlock ${next.title.toLowerCase()}.`
+            : 'Every doubloon found. All colours unlocked.';
+    }
+
+    pickColour(kind, id) {
+        const list = kind === 'sail' ? SAIL_COLORS : LANTERN_COLORS;
+        const c = list.find((k) => k.id === id);
+        if (!c) return;
+        if (c.reward && !this.progress.hasReward(c.reward)) {
+            if (this.ui) this.ui.toast('STILL LOCKED — FIND MORE DOUBLOONS', 1800);
+            return;
+        }
+        this.progress.select(kind, id);
+        this.updateColours();
+        if (this.experience.audio) this.experience.audio.playUIClick();
     }
 
     bindEvents() {
@@ -127,16 +178,27 @@ export default class GameMenu {
         this.overlay.querySelector('.menu-backdrop').addEventListener('click', () => this.close());
 
         window.addEventListener('keydown', (e) => {
-            if (e.code === 'Escape') this.toggle();
+            if (e.code !== 'Escape') return;
+            // ESC closes the chart / commendation first
+            if (this.ui && this.ui.treasureMap && this.ui.treasureMap.isOpen) return;
+            if (this.ui && this.ui.commendation && this.ui.commendation.isOpen) return;
+            if (document.body.classList.contains('intro-active')) return;
+            this.toggle();
         });
 
-        this.overlay.querySelectorAll('.nav-btn').forEach((btn) => {
-            btn.addEventListener('click', () => this.sailTo(btn.dataset.zone));
+        this.overlay.querySelector('#menu-map-btn').addEventListener('click', () => {
+            this.close();
+            if (this.ui && this.ui.treasureMap) setTimeout(() => this.ui.treasureMap.open(), 200);
         });
 
         this.overlay.querySelector('#menu-log-btn').addEventListener('click', () => {
             this.close();
             if (this.ui) this.ui.openStatic('captainslog');
+        });
+
+        this.overlay.querySelector('#menu-commendation-btn').addEventListener('click', () => {
+            this.close();
+            if (this.ui && this.ui.commendation) setTimeout(() => this.ui.commendation.open(), 200);
         });
 
         this.overlay.querySelector('#menu-quality-btn').addEventListener('click', () => {
@@ -157,6 +219,7 @@ export default class GameMenu {
                 this.updateSettingsDisplay();
             }
         });
+        this.experience.on('audio:change', () => { if (this.isOpen) this.updateSettingsDisplay(); });
     }
 
     toggle() {
@@ -168,6 +231,7 @@ export default class GameMenu {
         this.isOpen = true;
 
         this.updateSettingsDisplay();
+        this.updateColours();
         this.menuBtn.classList.add('active');
 
         const container = this.overlay.querySelector('.menu-container');
@@ -175,8 +239,8 @@ export default class GameMenu {
         gsap.to(this.overlay, { opacity: 1, visibility: 'visible', duration: 0.3, ease: 'power2.out' });
         gsap.to(container, { y: 0, scale: 1, duration: 0.45, ease: 'back.out(1.4)' });
 
-        gsap.fromTo(this.overlay.querySelectorAll('.nav-btn'), { y: 14, opacity: 0 }, {
-            y: 0, opacity: 1, duration: 0.3, stagger: 0.04, delay: 0.12, ease: 'power2.out'
+        gsap.fromTo(this.overlay.querySelectorAll('.menu-section'), { y: 14, opacity: 0 }, {
+            y: 0, opacity: 1, duration: 0.3, stagger: 0.05, delay: 0.1, ease: 'power2.out'
         });
 
         if (this.experience.audio) this.experience.audio.playUIClick();
@@ -210,30 +274,5 @@ export default class GameMenu {
             s.textContent = this.experience.audio.sfxMuted ? 'Off' : 'On';
             s.classList.toggle('is-on', !this.experience.audio.sfxMuted);
         }
-    }
-
-    /**
-     * Move the boat to just outside an island's dock, facing the pier.
-     */
-    sailTo(zoneId) {
-        const world = this.experience.world;
-        if (!world || !world.boat) return;
-
-        let x, z, yaw;
-        if (zoneId === 'spawn') {
-            x = SPAWN.x; z = SPAWN.z; yaw = 0;
-        } else {
-            const island = ISLANDS.find((i) => i.id === zoneId);
-            if (!island) return;
-            x = island.approach.x;
-            z = island.approach.z;
-            // Boat forward is -Z; rotating (0,0,-1) by yaw gives (-sin, -cos), so
-            // yaw = atan2(ux, uz) points the bow at the island (against dockDir)
-            yaw = Math.atan2(island.dockDir.x, island.dockDir.z);
-        }
-
-        world.boat.reset(x, z, yaw);
-        this.close();
-        if (this.experience.audio) this.experience.audio.playUIClick();
     }
 }

@@ -79,7 +79,6 @@ export default class Renderer {
 
         this.setInstance();
         this.createQualityToggle();
-        this.createControlsHint();
 
         this.sizes.on('resize', () => this.resize());
     }
@@ -204,20 +203,10 @@ export default class Renderer {
         this.toggleBtn.textContent = this.quality === 'high' ? 'Quality: Fine' : 'Quality: Swift';
     }
 
-    createControlsHint() {
-        const hint = document.createElement('div');
-        hint.id = 'controls-hint';
-        hint.innerHTML = `
-            <div class="hint-row"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>Sail</span></div>
-            <div class="hint-row"><kbd>Shift</kbd><span>Full sail</span></div>
-            <div class="hint-row"><kbd>Space</kbd><span>Drop anchor</span></div>
-        `;
-        document.body.appendChild(hint);
-    }
-
     toggleQuality() {
         this.quality = this.quality === 'high' ? 'low' : 'high';
         this.updateToggleLabel();
+        this.experience.emit('quality:change', this.quality);
 
         this.instance.shadowMap.enabled = this.quality === 'high';
         this.instance.shadowMap.needsUpdate = true;

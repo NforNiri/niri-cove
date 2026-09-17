@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import gsap from 'gsap';
 import IslandBase from './IslandBase.js';
 
 /**
@@ -21,8 +22,10 @@ export default class ResumeIsland extends IslandBase {
         // Dig site facing the dock
         const dig = this.polar(this.radius * 0.3, Math.PI * 0.15);
         this.place('hole', dig.x, dig.z, { scale: 1.2 });
-        this.place('tool-shovel', dig.x + 0.9, dig.z + 0.2, { scale: 1, rotY: 0.8 });
-        this.buildXMark(dig.x - 1.4, dig.z + 1.1);
+        this.shovel = this.place('tool-shovel', dig.x + 0.9, dig.z + 0.2, { scale: 1, rotY: 0.8 });
+        this.xPos = { x: dig.x - 1.4, z: dig.z + 1.1 };
+        this.buildXMark(this.xPos.x, this.xPos.z);
+        this.buildBuriedChest(this.xPos.x, this.xPos.z);
 
         // Treasure chests with coins
         const c1 = this.polar(this.radius * 0.42, -Math.PI * 0.3);
@@ -48,12 +51,97 @@ export default class ResumeIsland extends IslandBase {
     buildXMark(x, z) {
         const y = this.heightAt(x, z) + 0.03;
         const mat = new THREE.MeshStandardMaterial({ color: 0xB3322E, roughness: 0.8 });
+        this.xPlanks = [];
         for (const rot of [Math.PI / 4, -Math.PI / 4]) {
             const plank = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.06, 0.28), mat);
             plank.position.set(x, y, z);
             plank.rotation.y = rot;
             plank.receiveShadow = true;
             this.group.add(plank);
+            this.xPlanks.push(plank);
+        }
+    }
+
+    buildBuriedChest(x, z) {
+        const y = this.heightAt(x, z);
+        this.buriedChest = this.place('chest', x, z, { scale: 1.1, rotY: this.dockYaw, y: y - 1.2 });
+        if (!this.buriedChest) return;
+        this.buriedChest.visible = false;
+        this.chestRestY = y - 0.05;
+        this.dugUp = !!(this.experience.progress && this.experience.progress.hasQuest('dig'));
+        if (this.dugUp) this.setDug();
+    }
+
+    setDug() {
+        this.dugUp = true;
+        if (this.buriedChest) {
+            this.buriedChest.visible = true;
+            this.buriedChest.position.y = this.chestRestY;
+        }
+        for (const p of this.xPlanks || []) p.visible = false;
+    }
+
+    registerQuest(interactables) {
+        interactables.add({
+            id: 'dig',
+            x: this.data.dock.x,
+            z: this.data.dock.z,
+            radius: 9,
+            label: 'Dig at the X',
+            action: () => this.dig(),
+        });
+    }
+
+    dig() {
+        if (this.dugUp || !this.buriedChest) return Promise.resolve();
+        const audio = this.experience.audio;
+        const world = { x: this.data.x + this.xPos.x, z: this.data.z + this.xPos.z };
+        if (audio) audio.playAt('dig', world.x, world.z, { maxDist: 60, volume: 1.2 });
+
+        return new Promise((resolve) => {
+            // Planks kicked aside
+            this.xPlanks.forEach((p, i) => {
+                gsap.to(p.position, { x: p.position.x + (i ? 0.9 : -0.9), y: p.position.y + 0.3, duration: 0.5, ease: 'power2.out', delay: 0.5 });
+                gsap.to(p.rotation, { z: (i ? 1 : -1) * 0.7, duration: 0.5, delay: 0.5 });
+            });
+            // Shovel works
+            if (this.shovel) {
+                gsap.to(this.shovel.rotation, { x: -0.5, duration: 0.2, yoyo: true, repeat: 3, ease: 'power1.inOut' });
+            }
+            // Chest rises
+            this.buriedChest.visible = true;
+            gsap.to(this.buriedChest.position, {
+                y: this.chestRestY, duration: 1.1, delay: 0.9, ease: 'back.out(1.6)',
+                onComplete: () => {
+                    this.dugUp = true;
+                    if (audio) audio.playAt('chest', world.x, world.z, { maxDist: 60, volume: 1.2 });
+                    this.burstCoins();
+                    const ui = this.experience.world ? this.experience.world.ui : null;
+                    if (ui) {
+                        ui.openStatic('resume');
+                        ui.toast("THE CAPTAIN'S PAPERS — READ THEM ON THE RIGHT", 3200);
+                    }
+                    this.experience.emit('quest:dig');
+                    resolve();
+                },
+            });
+        });
+    }
+
+    burstCoins() {
+        const y = this.heightAt(this.xPos.x, this.xPos.z);
+        const mat = new THREE.MeshStandardMaterial({ color: 0xF0C048, metalness: 0.3, roughness: 0.35, emissive: 0xB07A10, emissiveIntensity: 0.8 });
+        for (let i = 0; i < 12; i++) {
+            const coin = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.03, 10), mat);
+            coin.position.set(this.xPos.x, y + 0.6, this.xPos.z);
+            this.group.add(coin);
+            const a = Math.random() * Math.PI * 2;
+            const d = 0.6 + Math.random() * 1.1;
+            gsap.to(coin.position, {
+                x: this.xPos.x + Math.cos(a) * d, z: this.xPos.z + Math.sin(a) * d, duration: 0.7, ease: 'power1.out',
+            });
+            gsap.to(coin.position, { y: y + 1.6 + Math.random(), duration: 0.32, ease: 'power2.out', yoyo: true, repeat: 1 });
+            gsap.to(coin.rotation, { x: Math.random() * 6, z: Math.random() * 6, duration: 0.7 });
         }
     }
 

@@ -76,24 +76,82 @@ export default class AboutIsland extends IslandBase {
         this.flame.position.y = 0.5;
         group.add(this.flame);
 
+        // Embers drifting up once lit
+        const emberGeo = new THREE.BufferGeometry();
+        this.emberCount = 18;
+        this.emberPos = new Float32Array(this.emberCount * 3);
+        this.emberSeed = new Float32Array(this.emberCount);
+        for (let i = 0; i < this.emberCount; i++) this.emberSeed[i] = Math.random();
+        emberGeo.setAttribute('position', new THREE.BufferAttribute(this.emberPos, 3));
+        this.embers = new THREE.Points(emberGeo, new THREE.PointsMaterial({ color: 0xFFB060, size: 0.09, transparent: true, opacity: 0.9, depthWrite: false }));
+        group.add(this.embers);
+
         this.group.add(group);
         this.fireLight = this.addLight(x, y + 1.0, z, { color: 0xFF9A3C, intensity: 5, distance: 11, flicker: 0.18, essential: true });
         this.campfirePos = { x: this.data.x + x, z: this.data.z + z };
 
         if (this.experience.audio) {
             this.fireEmitter = this.experience.audio.addEmitter({
-                key: 'campfire', x: this.campfirePos.x, z: this.campfirePos.z, maxDist: 28, volume: 0.55,
+                key: 'campfire', x: this.campfirePos.x, z: this.campfirePos.z, maxDist: 28, volume: 0.55, enabled: false,
             });
         }
+
+        // Cold until the visitor lights it (or did on a previous visit)
+        this.lit = 0;
+        this.setLit(this.experience.progress && this.experience.progress.hasQuest('campfire') ? 1 : 0);
+    }
+
+    setLit(v) {
+        this.lit = v;
+        this.flame.visible = v > 0.02;
+        this.embers.visible = v > 0.02;
+        this.fireLight.visible = v > 0.02;
+        for (const l of this.lights) if (l.light === this.fireLight) l.base = 5 * v;
+        if (this.fireEmitter) this.fireEmitter.enabled = v > 0.5;
+    }
+
+    registerQuest(interactables) {
+        interactables.add({
+            id: 'campfire',
+            x: this.data.dock.x,
+            z: this.data.dock.z,
+            radius: 9,
+            label: 'Light the campfire',
+            action: () => this.lightCampfire(),
+        });
+    }
+
+    lightCampfire() {
+        return new Promise((resolve) => {
+            const state = { v: 0.01 };
+            this.setLit(0.01);
+            gsap.to(state, {
+                v: 1, duration: 1.6, ease: 'power2.out',
+                onUpdate: () => this.setLit(state.v),
+                onComplete: resolve,
+            });
+        });
     }
 
     update() {
+        // applyQuality may re-show the light; the fire decides
+        if (this.fireLight) this.fireLight.visible = this.lit > 0.02;
         super.update();
-        if (this.flame) {
-            const t = this.time.elapsed / 1000;
-            const s = 1 + Math.sin(t * 11) * 0.12 + Math.sin(t * 17) * 0.06;
-            this.flame.scale.set(1, s, 1);
+        const t = this.time.elapsed / 1000;
+        if (this.flame && this.flame.visible) {
+            const s = (1 + Math.sin(t * 11) * 0.12 + Math.sin(t * 17) * 0.06) * this.lit;
+            this.flame.scale.set(this.lit, s, this.lit);
             this.flame.rotation.y = t * 1.5;
+        }
+        if (this.embers && this.embers.visible) {
+            for (let i = 0; i < this.emberCount; i++) {
+                const k = (t * 0.35 + this.emberSeed[i]) % 1;
+                this.emberPos[i * 3] = Math.sin(t * 1.3 + i) * 0.18 * k;
+                this.emberPos[i * 3 + 1] = 0.5 + k * 2.4 * this.lit;
+                this.emberPos[i * 3 + 2] = Math.cos(t * 1.1 + i * 2) * 0.18 * k;
+            }
+            this.embers.geometry.attributes.position.needsUpdate = true;
+            this.embers.material.opacity = 0.9 * this.lit;
         }
     }
 }

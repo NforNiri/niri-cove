@@ -33,7 +33,7 @@ export default class Panel {
 
         this.currentZone = zoneId;
         this.element.querySelector('.panel-title').textContent = content.title;
-        this.element.querySelector('.panel-kicker').textContent = content.kicker || '';
+        this.element.querySelector('.panel-kicker').innerHTML = content.kicker || '';
         const contentEl = this.element.querySelector('.panel-content');
         contentEl.innerHTML = content.html;
         contentEl.scrollTop = 0;
