@@ -82,7 +82,7 @@ export default class GameMenu {
                             <button class="settings-btn" id="menu-quality-btn">Fine</button>
                         </div>
                         <div class="settings-row">
-                            <span class="settings-label">Ocean ambience</span>
+                            <span class="settings-label">Music &amp; ambience</span>
                             <button class="settings-btn" id="menu-music-btn">Off</button>
                         </div>
                         <div class="settings-row">

@@ -3,8 +3,66 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { CSS2DRenderer } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 import Experience from './Experience.js';
+
+// Film look: warm grade by day, cooler at night, soft vignette, a whisper of grain.
+// Runs in linear HDR before the OutputPass tone-maps.
+const GradeShader = {
+    uniforms: {
+        tDiffuse: { value: null },
+        uTime: { value: 0 },
+        uNight: { value: 0 },
+        uVignette: { value: 0.9 },
+        uGrain: { value: 0.035 },
+        uResolution: { value: new THREE.Vector2(1, 1) },
+    },
+    vertexShader: /* glsl */ `
+        varying vec2 vUv;
+        void main() {
+            vUv = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    `,
+    fragmentShader: /* glsl */ `
+        uniform sampler2D tDiffuse;
+        uniform float uTime;
+        uniform float uNight;
+        uniform float uVignette;
+        uniform float uGrain;
+        uniform vec2 uResolution;
+        varying vec2 vUv;
+
+        float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+
+        void main() {
+            vec4 c = texture2D(tDiffuse, vUv);
+            vec3 col = c.rgb;
+
+            // Grade: sun-warmed by day, moonlit teal at night
+            vec3 warm = col * vec3(1.045, 1.0, 0.955);
+            vec3 cool = col * vec3(0.92, 0.985, 1.09);
+            col = mix(warm, cool, uNight);
+
+            // Gentle S-curve on the displayable range, HDR highlights untouched
+            vec3 s = clamp(col, 0.0, 1.0);
+            col = mix(col, s * s * (3.0 - 2.0 * s) + max(col - 1.0, 0.0), 0.16);
+
+            // Vignette
+            vec2 q = vUv - 0.5;
+            q.x *= uResolution.x / uResolution.y;
+            float v = 1.0 - dot(q, q) * uVignette * 0.55;
+            col *= clamp(v, 0.0, 1.0);
+
+            // Grain
+            float g = hash(vUv * uResolution + fract(uTime * 7.31) * 113.0) - 0.5;
+            col += g * uGrain * (0.6 + uNight * 0.8);
+
+            gl_FragColor = vec4(col, c.a);
+        }
+    `,
+};
 
 export default class Renderer {
     constructor() {
@@ -16,6 +74,8 @@ export default class Renderer {
 
         this.quality = this.detectQuality();
         this.listeners = [];
+        this.preRenderCallbacks = [];
+        this.night = 0;
 
         this.setInstance();
         this.createQualityToggle();
@@ -26,6 +86,25 @@ export default class Renderer {
 
     onQualityChange(cb) {
         this.listeners.push(cb);
+    }
+
+    /** Runs right before the main render (reflections, video textures...). */
+    addPreRender(cb) {
+        this.preRenderCallbacks.push(cb);
+    }
+
+    /**
+     * Night mood 0..1 from Environment: lanterns, campfire and the lighthouse
+     * need to bloom after dark, while the day stays crisp.
+     */
+    setMood(night) {
+        this.night = night;
+        if (this.bloomPass) {
+            this.bloomPass.threshold = THREE.MathUtils.lerp(1.6, 0.75, night);
+            this.bloomPass.strength = THREE.MathUtils.lerp(0.25, 0.7, night);
+            this.bloomPass.radius = THREE.MathUtils.lerp(0.5, 0.7, night);
+        }
+        if (this.gradePass) this.gradePass.uniforms.uNight.value = night;
     }
 
     detectQuality() {
@@ -87,7 +166,13 @@ export default class Renderer {
             1.6
         );
         this.composer.addPass(this.bloomPass);
+
+        this.gradePass = new ShaderPass(GradeShader);
+        this.gradePass.uniforms.uResolution.value.set(this.sizes.width, this.sizes.height);
+        this.composer.addPass(this.gradePass);
+
         this.composer.addPass(new OutputPass());
+        this.setMood(this.night);
     }
 
     setCSS2DRenderer() {
@@ -155,6 +240,9 @@ export default class Renderer {
             this.composer.setSize(this.sizes.width, this.sizes.height);
             this.composer.setPixelRatio(pr);
         }
+        if (this.gradePass) {
+            this.gradePass.uniforms.uResolution.value.set(this.sizes.width, this.sizes.height);
+        }
 
         if (this.css2dRenderer) {
             this.css2dRenderer.setSize(this.sizes.width, this.sizes.height);
@@ -195,7 +283,10 @@ export default class Renderer {
     }
 
     render() {
+        for (const cb of this.preRenderCallbacks) cb();
+
         if (this.quality === 'high' && this.composer) {
+            if (this.gradePass) this.gradePass.uniforms.uTime.value = performance.now() / 1000;
             this.composer.render();
         } else {
             this.instance.render(this.scene, this.camera.instance);

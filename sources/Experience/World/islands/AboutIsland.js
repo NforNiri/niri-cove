@@ -77,7 +77,14 @@ export default class AboutIsland extends IslandBase {
         group.add(this.flame);
 
         this.group.add(group);
-        this.addLight(x, y + 1.0, z, { color: 0xFF9A3C, intensity: 5, distance: 11, flicker: 0.18, essential: true });
+        this.fireLight = this.addLight(x, y + 1.0, z, { color: 0xFF9A3C, intensity: 5, distance: 11, flicker: 0.18, essential: true });
+        this.campfirePos = { x: this.data.x + x, z: this.data.z + z };
+
+        if (this.experience.audio) {
+            this.fireEmitter = this.experience.audio.addEmitter({
+                key: 'campfire', x: this.campfirePos.x, z: this.campfirePos.z, maxDist: 28, volume: 0.55,
+            });
+        }
     }
 
     update() {

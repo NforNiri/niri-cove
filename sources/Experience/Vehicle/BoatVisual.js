@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import Experience from '../Experience.js';
 import { cloneModel, fitFootprint, bounds } from '../Utils/models.js';
-import Wake from './Wake.js';
+import Wake, { Splash } from './Wake.js';
 
 const HULL_LENGTH = 4.2;
 
@@ -25,12 +25,59 @@ export default class BoatVisual {
 
         this.lean = 0;
         this.emitAccumulator = 0;
+        this.splashAccumulator = 0;
+        this.wind = 0.3;
 
         this.buildHull();
+        this.buildSail();
         this.buildPennant();
         this.buildLantern();
 
         this.wake = new Wake(this.scene, this.ocean);
+        this.splash = new Splash(this.scene);
+    }
+
+    /**
+     * Swap the kit's stiff sail for a cloth that bellies out with speed and
+     * flutters in the wind. Same Standard material (so it still takes light and
+     * shadow), with a vertex displacement injected before the model transform.
+     */
+    buildSail() {
+        if (!this.model) return;
+        const sail = this.model.getObjectByName('sail-a');
+        if (!sail || !sail.isMesh) return;
+
+        sail.geometry.computeBoundingBox();
+        const bb = sail.geometry.boundingBox;
+        this.sailUniforms = {
+            uTime: { value: 0 },
+            uWind: { value: 0.3 },
+            uBox: { value: new THREE.Vector4(bb.min.x, bb.max.x, bb.min.y, bb.max.y) },
+        };
+
+        const mat = sail.material.clone();
+        mat.side = THREE.DoubleSide;
+        mat.onBeforeCompile = (shader) => {
+            Object.assign(shader.uniforms, this.sailUniforms);
+            shader.vertexShader = shader.vertexShader
+                .replace('#include <common>', `#include <common>
+                    uniform float uTime;
+                    uniform float uWind;
+                    uniform vec4 uBox;`)
+                .replace('#include <begin_vertex>', `
+                    vec3 transformed = vec3(position);
+                    float sx = clamp((position.x - uBox.x) / max(uBox.y - uBox.x, 0.001), 0.0, 1.0);
+                    float sy = clamp((position.y - uBox.z) / max(uBox.w - uBox.z, 0.001), 0.0, 1.0);
+                    // Corners stay laced to mast and boom; the middle bellies out
+                    float belly = sin(sx * 3.14159) * sin(sy * 3.14159);
+                    float flutter = sin(uTime * 5.0 + sx * 7.0 + sy * 3.0) * 0.08
+                                  + sin(uTime * 8.3 + sy * 11.0 - sx * 2.0) * 0.04;
+                    transformed.z += belly * (0.9 * uWind + flutter * (0.35 + uWind));
+                `);
+        };
+        mat.customProgramCacheKey = () => 'cove-sail-cloth';
+        sail.material = mat;
+        this.sailMesh = sail;
     }
 
     buildHull() {
@@ -132,27 +179,64 @@ export default class BoatVisual {
         this.pivot.rotation.x += (targetPitch - this.pivot.rotation.x) * 0.05;
 
         const t = this.time.elapsed / 1000;
+        const dt = this.time.delta / 1000;
         this.pennantMat.uniforms.uTime.value = t;
         this.pennantMat.uniforms.uWind.value = 0.6 + Math.min(this.boat.speed / 7, 1) * 0.9;
 
-        // Night lantern
-        const env = this.experience.world ? this.experience.world.environment : null;
+        // Sail fills with forward speed (and a bit of ambient wind when idle)
+        const world = this.experience.world;
+        const gust = world && world.weather ? world.weather.wind : 0;
+        const targetWind = 0.25 + Math.max(this.boat.forwardSpeed, 0) / 11.5 * 0.75 + gust * 0.4;
+        this.wind += (targetWind - this.wind) * Math.min(1, dt * 2.5);
+        if (this.sailUniforms) {
+            this.sailUniforms.uTime.value = t;
+            this.sailUniforms.uWind.value = this.wind;
+        }
+
+        // Night lantern with a candle flicker
+        const env = world ? world.environment : null;
         const night = env ? env.nightFactor : 0;
         const high = this.renderer.quality === 'high';
-        this.lantern.intensity = high ? night * 6 : 0;
-        this.lanternGlow.material.emissiveIntensity = night * 2.5;
+        const flicker = 0.82 + Math.sin(t * 9.1) * 0.08 + Math.sin(t * 23.7) * 0.06 + Math.sin(t * 3.3) * 0.04;
+        this.lantern.intensity = high ? night * 6 * flicker : 0;
+        this.lanternGlow.material.emissiveIntensity = night * 2.5 * flicker;
 
-        // Wake
+        // Wake + spray
         this.wake.update(t);
+        this.splash.update(t);
         const speed = this.boat.speed;
         if (speed > 1.0) {
             const rate = THREE.MathUtils.mapLinear(Math.min(speed, 11), 1, 11, 6, 30);
-            this.emitAccumulator += rate * (this.time.delta / 1000);
+            this.emitAccumulator += rate * dt;
             while (this.emitAccumulator >= 1) {
                 this.emitAccumulator -= 1;
                 this.emitFoam(speed);
             }
         }
+        if (speed > 5) {
+            // Bow bursts get denser toward full sail
+            const rate = THREE.MathUtils.mapLinear(Math.min(speed, 11.5), 5, 11.5, 2, 9);
+            this.splashAccumulator += rate * dt;
+            while (this.splashAccumulator >= 1) {
+                this.splashAccumulator -= 1;
+                this.emitSpray(speed);
+            }
+        }
+    }
+
+    emitSpray(speed) {
+        const q = this.container.quaternion;
+        const side = Math.random() < 0.5 ? -1 : 1;
+        const bow = new THREE.Vector3(side * 0.55, 0.1, -1.9).applyQuaternion(q).add(this.container.position);
+        // Outward + up + a little forward, in world space
+        const dir = new THREE.Vector3(side * 1.6, 0, -0.6).applyQuaternion(q);
+        const k = THREE.MathUtils.mapLinear(Math.min(speed, 11.5), 5, 11.5, 0.6, 1.2);
+        this.splash.burst(bow.x, bow.y, bow.z, dir.x * k, 2.4 * k, dir.z * k, {
+            n: 3 + Math.floor(Math.random() * 3),
+            spread: 1.1,
+            size: 0.45,
+            life: 0.65,
+        });
     }
 
     emitFoam(speed) {
@@ -167,6 +251,14 @@ export default class BoatVisual {
         if (speed > 3.5 && Math.random() < 0.5) {
             const bow = new THREE.Vector3(side * 1.4, 0, -1.6).applyQuaternion(q).add(this.container.position);
             this.wake.emit(bow.x, bow.z, { size: 0.9, life: 0.9, jitter: 0.25 });
+        }
+
+        // Rudder wash: the turning side churns extra foam off the stern quarter
+        const turn = this.boat.turnRate;
+        if (Math.abs(turn) > 0.3 && speed > 2) {
+            const outer = turn > 0 ? 0.7 : -0.7;
+            const quarter = new THREE.Vector3(outer, 0, 2.3).applyQuaternion(q).add(this.container.position);
+            this.wake.emit(quarter.x, quarter.z, { size: 1.1 + Math.abs(turn) * 0.6, life: 1.2, jitter: 0.5 });
         }
     }
 }

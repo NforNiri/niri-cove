@@ -239,6 +239,7 @@ export default class Environment {
 
         this.scene.fog.color.copy(this._horizon);
         this.renderer.instance.setClearColor(this._horizon);
+        this.renderer.setMood(this.nightFactor);
 
         if (this.ocean) {
             this.ocean.setLighting({
@@ -247,6 +248,7 @@ export default class Environment {
                 skyColor: this._c2,
                 deepColor: this._deep,
                 shallowColor: this._shallow,
+                sunUp: 1 - this.nightFactor * 0.85,
             });
         }
     }

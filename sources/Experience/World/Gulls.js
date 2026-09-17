@@ -30,6 +30,7 @@ export default class Gulls {
             }
         });
 
+        this.nextCry = 6;
         this.experience.addUpdate(7, () => this.update());
     }
 
@@ -73,6 +74,15 @@ export default class Gulls {
 
     update() {
         const t = this.time.elapsed / 1000;
+
+        // An occasional cry from wherever a gull happens to be
+        if (t > this.nextCry && this.gulls.length) {
+            this.nextCry = t + 5 + Math.random() * 9;
+            const g = this.gulls[Math.floor(Math.random() * this.gulls.length)];
+            const audio = this.experience.audio;
+            if (audio) audio.playAt('gull', g.body.position.x, g.body.position.z, { maxDist: 70, volume: 0.9 });
+        }
+
         for (const g of this.gulls) {
             const a = t * g.speed + g.phase;
             const wobble = Math.sin(t * 0.7 + g.phase) * 1.5;

@@ -55,6 +55,8 @@ export default class Boat {
         this.speed = 0;
         this.forwardSpeed = 0;
         this.turnRate = 0;
+        // World-space heading (unit, XZ plane), read by the camera and effects
+        this.forward = new THREE.Vector3(0, 0, -1);
         this.wasBoosting = false;
         this.wasBraking = false;
 
@@ -117,7 +119,13 @@ export default class Boat {
         const forward = this._forward.set(0, 0, -1).applyQuaternion(this._q);
         forward.y = 0;
         forward.normalize();
+        this.forward.copy(forward);
         const right = this._right.set(forward.z, 0, -forward.x);
+
+        // Intro tour: no input, the boat just rides the swell
+        const locked = !!controls.locked;
+        const keys = locked ? { forward: false, backward: false, left: false, right: false, boost: false, brake: false } : controls.keys;
+        const axis = locked ? null : controls.axis;
 
         this.speed = Math.hypot(vel.x, vel.z);
         this.forwardSpeed = vel.x * forward.x + vel.z * forward.z;
@@ -145,8 +153,8 @@ export default class Boat {
         }
 
         // ── Propulsion ────────────────────────────────────────────────────
-        const throttle = controls.axis ? controls.axis.y : ((controls.keys.forward ? 1 : 0) - (controls.keys.backward ? 1 : 0));
-        const boosting = controls.keys.boost && throttle > 0;
+        const throttle = axis ? axis.y : ((keys.forward ? 1 : 0) - (keys.backward ? 1 : 0));
+        const boosting = keys.boost && throttle > 0;
         const maxSpeed = boosting ? p.boostSpeed : p.maxSpeed;
         const speedRatio = Math.min(Math.abs(this.forwardSpeed) / maxSpeed, 1);
         const taper = 1 - speedRatio * 0.8;
@@ -164,13 +172,13 @@ export default class Boat {
         rb.addForce({ x: right.x * grip, y: 0, z: right.z * grip }, true);
 
         // ── Anchor / brake ────────────────────────────────────────────────
-        if (controls.keys.brake && this.speed > 0.25) {
+        if (keys.brake && this.speed > 0.25) {
             const bf = p.brakeForce / this.speed;
             rb.addForce({ x: -vel.x * bf, y: 0, z: -vel.z * bf }, true);
         }
 
         // ── Steering (yaw only; leave pitch/roll to the waves) ────────────
-        const steer = controls.axis ? controls.axis.x : ((controls.keys.right ? 1 : 0) - (controls.keys.left ? 1 : 0));
+        const steer = axis ? axis.x : ((keys.right ? 1 : 0) - (keys.left ? 1 : 0));
         // Rudder needs water flowing past it
         const rudderAuthority = THREE.MathUtils.clamp(Math.abs(this.forwardSpeed) / 2.5, 0.2, 1);
         const direction = this.forwardSpeed < -0.3 ? 1 : -1;
@@ -187,11 +195,16 @@ export default class Boat {
 
         // ── One-shot audio cues ───────────────────────────────────────────
         const audio = this.experience.audio;
-        if (audio) {
-            if (boosting && !this.wasBoosting) audio.playBoost();
-            if (controls.keys.brake && !this.wasBraking && this.speed > 1.5) audio.playBrake();
+        const camera = this.experience.camera;
+        if (boosting && !this.wasBoosting) {
+            if (audio) audio.playBoost();
+            if (camera) camera.addShake(0.45);
+        }
+        if (keys.brake && !this.wasBraking && this.speed > 1.5) {
+            if (audio) audio.playBrake();
+            if (camera) camera.addShake(0.3 + Math.min(this.speed / 11, 1) * 0.5);
         }
         this.wasBoosting = boosting;
-        this.wasBraking = controls.keys.brake;
+        this.wasBraking = keys.brake;
     }
 }

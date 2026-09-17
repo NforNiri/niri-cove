@@ -705,15 +705,31 @@ button {
     50% { box-shadow: 0 0 0 6px rgba(255, 140, 66, 0.45), 0 4px 12px rgba(0, 0, 0, 0.25); }
 }
 
+#audio-chip {
+    right: 150px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+#audio-chip.is-muted {
+    color: var(--ink-faint);
+}
+
 @media (max-width: 1023px), (pointer: coarse) {
     /* Opposite the menu button, clear of the thumb controls */
-    #quality-toggle {
+    #quality-toggle,
+    #audio-chip {
         top: calc(16px + env(safe-area-inset-top));
-        right: 16px;
         bottom: auto;
         font-size: 9.5px;
         padding: 6px 11px;
     }
+
+    #quality-toggle { right: 16px; }
+    #audio-chip { right: 128px; }
+    #audio-chip span { display: none; }
+    #audio-chip { padding: 7px 9px; }
 }
 
 #controls-hint {
@@ -1070,11 +1086,133 @@ kbd {
 }
 
 /* ==========================================================================
+   Intro tour overlay (title card, vignette, skip)
+   ========================================================================== */
+#intro-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 300;
+    pointer-events: none;
+}
+
+.intro-vignette {
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(ellipse 75% 65% at 50% 50%, transparent 55%, rgba(8, 38, 40, 0.55) 100%),
+        linear-gradient(180deg, rgba(8, 38, 40, 0.35), transparent 22%, transparent 78%, rgba(8, 38, 40, 0.45));
+}
+
+.intro-card {
+    position: absolute;
+    left: 50%;
+    top: 38%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    padding: 0 24px;
+    white-space: nowrap;
+}
+
+.intro-eyebrow {
+    font-family: var(--font-heading);
+    font-size: 12px;
+    letter-spacing: 5px;
+    text-transform: uppercase;
+    color: rgba(246, 236, 212, 0.8);
+    text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
+    margin-bottom: 12px;
+}
+
+.intro-title {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 6rem;
+    line-height: 1;
+    color: var(--parchment-light);
+    letter-spacing: 3px;
+    text-shadow:
+        0 3px 0 rgba(90, 58, 30, 0.7),
+        0 14px 40px rgba(0, 0, 0, 0.5);
+}
+
+.intro-byline {
+    margin-top: 16px;
+    font-family: var(--font-heading);
+    font-size: 13px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--gold);
+    text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
+}
+
+.intro-skip {
+    position: absolute;
+    right: 22px;
+    bottom: calc(22px + env(safe-area-inset-bottom));
+    pointer-events: auto;
+    font-family: var(--font-heading);
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: rgba(246, 236, 212, 0.85);
+    background: rgba(8, 38, 40, 0.45);
+    border: 1px solid rgba(234, 216, 177, 0.45);
+    border-radius: 20px;
+    padding: 9px 16px;
+    cursor: pointer;
+    opacity: 0;
+    backdrop-filter: blur(4px);
+    transition: background 0.2s, color 0.2s;
+}
+
+.intro-skip:hover {
+    background: rgba(234, 216, 177, 0.9);
+    color: var(--ink);
+}
+
+/* No chrome while the tour plays */
+body.intro-active #menu-btn,
+body.intro-active #controls-hint,
+body.intro-active #quality-toggle,
+body.intro-active #audio-chip,
+body.intro-active #touch-controls,
+body.intro-active .hud-bottom,
+body.intro-active #treasure-map {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transition: opacity 0.6s;
+}
+
+/* Label "stamped" as the tour camera sweeps past its island */
+.zone-label.is-stamped {
+    animation: label-stamp 2.6s ease-out forwards;
+}
+
+@keyframes label-stamp {
+    0%   { opacity: 0; transform: scale(1.8) rotate(-6deg); }
+    12%  { opacity: 1; transform: scale(1.0) rotate(-2deg); }
+    18%  { transform: scale(1.08) rotate(0deg); }
+    80%  { opacity: 1; transform: scale(1); }
+    100% { opacity: 0.55; transform: scale(0.9); }
+}
+
+/* ==========================================================================
    Responsive
    ========================================================================== */
 @media (max-width: 600px) {
     .loading-title {
         font-size: 3rem;
+    }
+
+    .intro-title {
+        font-size: 3.4rem;
+    }
+
+    .intro-eyebrow,
+    .intro-byline {
+        font-size: 10px;
+        letter-spacing: 3px;
+        white-space: normal;
     }
 
     #panel {
@@ -1112,7 +1250,8 @@ kbd {
 }
 
 /* Panel open: hide chrome that would overlap */
-body.panel-open #quality-toggle {
+body.panel-open #quality-toggle,
+body.panel-open #audio-chip {
     display: none;
 }
 

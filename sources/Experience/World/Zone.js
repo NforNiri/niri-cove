@@ -34,6 +34,19 @@ export default class Zone {
         this._q = new THREE.Quaternion();
 
         this.createMarkers();
+
+        // Intro tour: stamp each label as the camera sweeps past its island
+        this.experience.on('intro:island', (id) => this.stampLabel(id));
+    }
+
+    stampLabel(id) {
+        const m = this.markers.find((k) => k.zone.id === id);
+        if (!m) return;
+        m.labelDiv.classList.remove('is-stamped');
+        // restart the animation
+        void m.labelDiv.offsetWidth;
+        m.labelDiv.classList.add('is-stamped');
+        setTimeout(() => m.labelDiv.classList.remove('is-stamped'), 2600);
     }
 
     createMarkers() {

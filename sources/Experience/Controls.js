@@ -16,6 +16,9 @@ export default class Controls {
         // Analog steering/throttle (-1..1) from the joystick; keyboard fills ±1
         this.axis = { x: 0, y: 0 };
 
+        // While true (intro tour) the boat ignores input
+        this.locked = false;
+
         this.isMobile = this.detectMobile();
 
         this.setKeyboard();
