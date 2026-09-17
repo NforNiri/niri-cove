@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader.js';
+import { MeshoptDecoder } from 'meshoptimizer';
 import EventEmitter from './EventEmitter.js';
 
 console.log('Resources module loaded');
@@ -17,6 +17,11 @@ export default class Resources extends EventEmitter {
         this.toLoad = this.sources.length;
         this.loaded = 0;
 
+        // Textures flagged `shared` are loaded first and swapped into any GLB
+        // texture of the same name whose embedded image is a 1x1 placeholder
+        // (see scripts/compress-models.mjs).
+        this.shared = {};
+
         this.setLoaders();
         this.startLoading();
     }
@@ -24,12 +29,9 @@ export default class Resources extends EventEmitter {
     setLoaders() {
         this.loaders = {};
 
-        // GLTF Loader with Draco compression
-        this.loaders.dracoLoader = new DRACOLoader();
-        this.loaders.dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
-
+        // GLTF Loader: meshopt-compressed, quantized GLBs (scripts/compress-models.mjs)
         this.loaders.gltfLoader = new GLTFLoader();
-        this.loaders.gltfLoader.setDRACOLoader(this.loaders.dracoLoader);
+        this.loaders.gltfLoader.setMeshoptDecoder(MeshoptDecoder);
 
         // Texture Loader
         this.loaders.textureLoader = new THREE.TextureLoader();
@@ -49,11 +51,60 @@ export default class Resources extends EventEmitter {
             return;
         }
 
-        for (const source of this.sources) {
+        // Shared textures first (tiny), then everything else in parallel
+        const sharedSources = this.sources.filter((s) => s.type === 'texture' && s.shared);
+        const rest = this.sources.filter((s) => !(s.type === 'texture' && s.shared));
+        let pending = sharedSources.length;
+        const next = () => { if (--pending <= 0) this.loadSources(rest); };
+        if (!pending) return this.loadSources(rest);
+        for (const source of sharedSources) {
+            this.loaders.textureLoader.load(
+                source.path,
+                (tex) => {
+                    tex.colorSpace = THREE.SRGBColorSpace;
+                    tex.flipY = false; // glTF UV convention
+                    this.shared[source.name] = tex;
+                    this.sourceLoaded(source, tex);
+                    next();
+                },
+                undefined,
+                (error) => {
+                    console.error(`Error loading shared texture ${source.name}:`, error);
+                    this.sourceLoaded(source, null);
+                    next();
+                }
+            );
+        }
+    }
+
+    /** Swap 1x1 placeholder images for the shared texture of the same name. */
+    applySharedTextures(gltf) {
+        if (!gltf || !gltf.scene) return;
+        const seen = new Set();
+        gltf.scene.traverse((child) => {
+            if (!child.isMesh) return;
+            const mats = Array.isArray(child.material) ? child.material : [child.material];
+            for (const mat of mats) {
+                const map = mat && mat.map;
+                if (!map || seen.has(map)) continue;
+                seen.add(map);
+                const shared = this.shared[map.name];
+                const img = map.image;
+                if (!shared || !img || img.width !== 1) continue;
+                map.image = shared.image;
+                map.colorSpace = shared.colorSpace;
+                map.needsUpdate = true;
+            }
+        });
+    }
+
+    loadSources(sources) {
+        for (const source of sources) {
             if (source.type === 'gltfModel') {
                 this.loaders.gltfLoader.load(
                     source.path,
                     (file) => {
+                        this.applySharedTextures(file);
                         this.sourceLoaded(source, file);
                     },
                     (progress) => {

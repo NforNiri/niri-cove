@@ -134,6 +134,7 @@ export default class Camera {
     skipCinematic() {
         if (!this.cinematicMode || !this.cinematic || this.cinematic.skipping) return;
         this.cinematic.skipping = true;
+        this.introSkipped = true; // read by Analytics on intro:done
         if (this.cinematicTween) this.cinematicTween.kill();
         // Stamp everything we would have passed
         for (const isl of this.cinematic.islands) this.stampIsland(isl);

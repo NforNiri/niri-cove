@@ -71,6 +71,10 @@ const sources = models.map((name) => ({
     path: `${base}/${name}.glb`,
 }));
 
+// The kit's single palette texture, stripped from every GLB by
+// scripts/compress-models.mjs and loaded once here (see Resources.applySharedTextures).
+sources.unshift({ name: 'colormap', type: 'texture', path: `${base}/colormap.png`, shared: true });
+
 // Hero assets (Meshy-generated, Blender-cleaned). Optional: when the file is
 // missing the kit model is used and nothing is logged as an error.
 // Author -Z forward, Y up, real-world scale (~4.2 m hull), with empties named

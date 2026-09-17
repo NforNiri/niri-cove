@@ -54,55 +54,74 @@ export default class Audio {
     }
 
     createSounds() {
-        // Procedurally generated (CC0) WAVs in /static/sounds
-        this.sounds.ambient = this.createHowl('/sounds/ocean-ambience.wav', { loop: true, volume: 0.22 });
-        this.sounds.musicDay = this.createHowl('/sounds/music-day.wav', { loop: true, volume: 0 });
-        this.sounds.musicNight = this.createHowl('/sounds/music-night.wav', { loop: true, volume: 0 });
+        // Procedurally generated (CC0) sounds: WAV sources in assets-src/sounds,
+        // encoded to OGG + MP3 in /static/sounds by scripts/compress-sounds.mjs.
+        // `lazy` sounds are fetched on first play (Howler queues the play).
+        const lazy = { preload: false };
 
-        this.sounds.hullCreak = this.createHowl('/sounds/hull-creak.wav', { loop: true, volume: 0 });
-        this.sounds.wake = this.createHowl('/sounds/wake-wash.wav', { loop: true, volume: 0 });
+        // Heard in the first minute: preload
+        this.sounds.ambient = this.createHowl('ocean-ambience', { loop: true, volume: 0.22 });
+        this.sounds.musicDay = this.createHowl('music-day', { loop: true, volume: 0 });
+        this.sounds.hullCreak = this.createHowl('hull-creak', { loop: true, volume: 0 });
+        this.sounds.wake = this.createHowl('wake-wash', { loop: true, volume: 0 });
+        this.sounds.sail = this.createHowl('sail-snap', { volume: 0.45 });
+        this.sounds.anchor = this.createHowl('anchor-splash', { volume: 0.4 });
+        this.sounds.bell = this.createHowl('ship-bell', { volume: 0.4 });
+        this.sounds.coin = this.createHowl('coin', { volume: 0.4 });
+        this.sounds.uiClick = this.createHowl('wood-click', { volume: 0.3 });
+        this.sounds.panelOpen = this.createHowl('parchment', { volume: 0.35 });
+        this.sounds.parrot = this.createHowl('parrot', { volume: 0.28 });
+        this.sounds.gull = this.createHowl('gull', { volume: 0.3 });
+        this.sounds.splash = this.createHowl('splash', { volume: 0.4 });
 
-        this.sounds.sail = this.createHowl('/sounds/sail-snap.wav', { volume: 0.45 });
-        this.sounds.anchor = this.createHowl('/sounds/anchor-splash.wav', { volume: 0.4 });
-        this.sounds.bell = this.createHowl('/sounds/ship-bell.wav', { volume: 0.4 });
-        this.sounds.coin = this.createHowl('/sounds/coin.wav', { volume: 0.4 });
-        this.sounds.uiClick = this.createHowl('/sounds/wood-click.wav', { volume: 0.3 });
-        this.sounds.panelOpen = this.createHowl('/sounds/parchment.wav', { volume: 0.35 });
+        // Night bed: the cycle is 14 min, so it is never needed at launch
+        this.sounds.musicNight = this.createHowl('music-night', { loop: true, volume: 0, ...lazy });
 
         // Quest / event one-shots
-        this.sounds.cannon = this.createHowl('/sounds/cannon.wav', { volume: 0.55 });
-        this.sounds.dig = this.createHowl('/sounds/dig.wav', { volume: 0.45 });
-        this.sounds.chest = this.createHowl('/sounds/chest-open.wav', { volume: 0.45 });
-        this.sounds.quest = this.createHowl('/sounds/quest.wav', { volume: 0.45 });
-        this.sounds.splash = this.createHowl('/sounds/splash.wav', { volume: 0.4 });
-        this.sounds.gull = this.createHowl('/sounds/gull.wav', { volume: 0.3 });
+        this.sounds.cannon = this.createHowl('cannon', { volume: 0.55, ...lazy });
+        this.sounds.dig = this.createHowl('dig', { volume: 0.45, ...lazy });
+        this.sounds.chest = this.createHowl('chest-open', { volume: 0.45, ...lazy });
+        this.sounds.quest = this.createHowl('quest', { volume: 0.45, ...lazy });
 
         // Positional loops (volume set per frame from distance)
-        this.sounds.campfire = this.createHowl('/sounds/campfire.wav', { loop: true, volume: 0 });
-        this.sounds.projector = this.createHowl('/sounds/projector.wav', { loop: true, volume: 0 });
+        this.sounds.campfire = this.createHowl('campfire', { loop: true, volume: 0, ...lazy });
+        this.sounds.projector = this.createHowl('projector', { loop: true, volume: 0, ...lazy });
 
         // Weather + living world
-        this.sounds.rain = this.createHowl('/sounds/rain.wav', { loop: true, volume: 0 });
-        this.sounds.thunder = this.createHowl('/sounds/thunder.wav', { volume: 0.55 });
-        this.sounds.dolphin = this.createHowl('/sounds/dolphin.wav', { volume: 0.35 });
-        this.sounds.whale = this.createHowl('/sounds/whale.wav', { volume: 0.5 });
-        this.sounds.parrot = this.createHowl('/sounds/parrot.wav', { volume: 0.28 });
-        this.sounds.bottle = this.createHowl('/sounds/bottle.wav', { volume: 0.45 });
-        this.sounds.kraken = this.createHowl('/sounds/kraken.wav', { volume: 0.6 });
-        this.sounds.horn = this.createHowl('/sounds/horn.wav', { volume: 0.4 });
+        this.sounds.rain = this.createHowl('rain', { loop: true, volume: 0, ...lazy });
+        this.sounds.thunder = this.createHowl('thunder', { volume: 0.55, ...lazy });
+        this.sounds.dolphin = this.createHowl('dolphin', { volume: 0.35, ...lazy });
+        this.sounds.whale = this.createHowl('whale', { volume: 0.5, ...lazy });
+        this.sounds.bottle = this.createHowl('bottle', { volume: 0.45, ...lazy });
+        this.sounds.kraken = this.createHowl('kraken', { volume: 0.6, ...lazy });
+        this.sounds.horn = this.createHowl('horn', { volume: 0.4, ...lazy });
         this.rainLevel = 0;
     }
 
-    createHowl(src, options = {}) {
+    createHowl(name, options = {}) {
         try {
             return new Howl({
-                src: [src],
+                // Howler plays the first format the browser supports
+                src: [`/sounds/${name}.ogg`, `/sounds/${name}.mp3`],
                 ...options,
-                onloaderror: () => console.warn(`Audio not found: ${src} — skipping`)
+                onloaderror: () => console.warn(`Audio not found: ${name} — skipping`)
             });
         } catch (e) {
             return null;
         }
+    }
+
+    /**
+     * Start a Howl, fetching it first if it was created lazily. Howler queues
+     * the play until the load completes, so callers can treat this as play().
+     * Returns the sound id (or null while a previous load is still pending).
+     */
+    startLazy(s) {
+        if (!s) return null;
+        const state = s.state();
+        if (state === 'loading') return null;
+        if (state === 'unloaded') s.load();
+        return s.play();
     }
 
     // ── HUD chip ─────────────────────────────────────────────────────────
@@ -136,13 +155,15 @@ export default class Audio {
             const s = this.sounds[key];
             if (!s) continue;
             s.mute(this.musicMuted);
-            s.play();
+            // The night stem is lazy: fetched and started the first time dusk mixes it in
+            if (key !== 'musicNight') s.play();
         }
         for (const key of ['hullCreak', 'wake', 'campfire', 'projector', 'rain']) {
             const s = this.sounds[key];
             if (!s) continue;
             s.mute(this.sfxMuted);
-            if (key !== 'projector' && key !== 'rain') s.play();
+            // Positional loops start when first heard (see update/emitters)
+            if (key === 'hullCreak' || key === 'wake') s.play();
         }
         this.applyMusicMix();
     }
@@ -151,7 +172,7 @@ export default class Audio {
     setRain(on) {
         const s = this.sounds.rain;
         if (!s || !this.started) return;
-        if (on && !s.playing()) { s.volume(0); s.play(); }
+        if (on && !s.playing()) { s.volume(0); this.startLazy(s); }
         if (!on && s.playing()) {
             s.fade(s.volume(), 0, 1500);
             s.once('fade', () => { if (this.rainLevel < 0.01) s.stop(); });
@@ -179,7 +200,8 @@ export default class Audio {
         if (!s) return;
         const { gain, pan } = this.spatialize(x, z, maxDist);
         if (gain < 0.02) return;
-        const id = s.play();
+        const id = this.startLazy(s);
+        if (id === null) return;
         s.volume(gain * volume * this.baseVolume(key), id);
         s.stereo(pan, id);
     }
@@ -238,7 +260,8 @@ export default class Audio {
             const { gain, pan } = this.spatialize(e.x, e.z, e.maxDist);
             s.volume(gain * e.volume);
             s.stereo(pan);
-            if (e.key === 'projector' && gain > 0 && !s.playing()) s.play();
+            // Lazy loops: fetch + start the first time they are within earshot
+            if (gain > 0.01 && !s.playing()) this.startLazy(s);
         }
     }
 
@@ -249,7 +272,11 @@ export default class Audio {
         const n = THREE.MathUtils.clamp(this.night, 0, 1);
         const duck = this.ducked ? 0.12 : 1;
         if (day) day.volume(Math.cos(n * Math.PI / 2) * 0.28 * duck);
-        if (nightStem) nightStem.volume(Math.sin(n * Math.PI / 2) * 0.3 * duck);
+        if (nightStem) {
+            nightStem.volume(Math.sin(n * Math.PI / 2) * 0.3 * duck);
+            // Lazy stem: fetch and start it as dusk begins to mix it in
+            if (this.started && n > 0.01 && !nightStem.playing()) this.startLazy(nightStem);
+        }
         if (this.sounds.ambient) this.sounds.ambient.volume(0.22 * (this.ducked ? 0.4 : 1));
     }
 
@@ -263,7 +290,7 @@ export default class Audio {
 
     playSFX(key) {
         if (!this.started || this.sfxMuted) return;
-        if (this.sounds[key]) this.sounds[key].play();
+        this.startLazy(this.sounds[key]);
     }
 
     playBoost()     { this.playSFX('sail'); }

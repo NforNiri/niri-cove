@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "assets:models": "node scripts/compress-models.mjs",
+    "assets:sounds": "node scripts/compress-sounds.mjs",
+    "assets": "npm run assets:models && npm run assets:sounds"
   },
   "dependencies": {
     "@dimforge/rapier3d": "^0.19.3",
@@ -14,6 +17,7 @@
     "camera-controls": "^3.1.2",
     "gsap": "^3.14.2",
     "howler": "^2.2.4",
+    "meshoptimizer": "^1.2.0",
     "stats-gl": "^4.1.0",
     "three": "^0.183.2",
     "vite": "5.2.0",
@@ -22,5 +26,10 @@
   },
   "overrides": {
     "@swc/core": "1.15.21"
+  },
+  "devDependencies": {
+    "@gltf-transform/core": "^4.5.0",
+    "@gltf-transform/extensions": "^4.5.0",
+    "@gltf-transform/functions": "^4.5.0"
   }
 }

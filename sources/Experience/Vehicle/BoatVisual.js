@@ -72,9 +72,15 @@ export default class BoatVisual {
 
         sail.geometry.computeBoundingBox();
         const bb = sail.geometry.boundingBox;
+        // Local geometry units per world metre, so the belly is authored in
+        // metres regardless of model scale or quantized (integer) positions.
+        this.model.updateMatrixWorld(true);
+        const worldBox = new THREE.Box3().setFromObject(sail);
+        const unit = (bb.max.y - bb.min.y) / Math.max(worldBox.max.y - worldBox.min.y, 1e-3);
         this.sailUniforms = {
             uTime: { value: 0 },
             uWind: { value: 0.3 },
+            uUnit: { value: unit },
             uBox: { value: new THREE.Vector4(bb.min.x, bb.max.x, bb.min.y, bb.max.y) },
         };
 
@@ -86,6 +92,7 @@ export default class BoatVisual {
                 .replace('#include <common>', `#include <common>
                     uniform float uTime;
                     uniform float uWind;
+                    uniform float uUnit;
                     uniform vec4 uBox;`)
                 .replace('#include <begin_vertex>', `
                     vec3 transformed = vec3(position);
@@ -95,7 +102,8 @@ export default class BoatVisual {
                     float belly = sin(sx * 3.14159) * sin(sy * 3.14159);
                     float flutter = sin(uTime * 5.0 + sx * 7.0 + sy * 3.0) * 0.08
                                   + sin(uTime * 8.3 + sy * 11.0 - sx * 2.0) * 0.04;
-                    transformed.z += belly * (0.9 * uWind + flutter * (0.35 + uWind));
+                    // Amplitudes in metres (~0.45 m belly at full wind), converted to local units
+                    transformed.z += uUnit * belly * (0.45 * uWind + flutter * (0.18 + 0.5 * uWind));
                 `);
         };
         mat.customProgramCacheKey = () => 'cove-sail-cloth';
