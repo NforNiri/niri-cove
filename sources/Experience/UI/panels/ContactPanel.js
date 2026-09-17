@@ -3,8 +3,8 @@ export default {
     kicker: 'Contact — send a message in a bottle',
     html: `
         <div class="panel-section">
-            <h3>Signal the lighthouse</h3>
-            <p>Want to work together, or just talk shop about games and film? Any of these channels reaches me.</p>
+            <h3>Let's work together</h3>
+            <p>Have a project that needs a steady hand from brief to launch, or just want to talk shop about games, film and AI pipelines? Any of these channels reaches me.</p>
         </div>
 
         <div class="contact-links">
@@ -32,10 +32,20 @@ export default {
                 <span class="contact-icon">&#9654;</span>
                 <span>Vimeo</span>
             </a>
+
+            <a href="https://www.facebook.com/Nirl123/" target="_blank" rel="noopener" class="contact-btn">
+                <span class="contact-icon">f</span>
+                <span>Facebook</span>
+            </a>
+
+            <a href="https://niri-portfolio.vercel.app/" target="_blank" rel="noopener" class="contact-btn">
+                <span class="contact-icon">&#9875;</span>
+                <span>Main portfolio site</span>
+            </a>
         </div>
 
         <div class="panel-section panel-footnote">
-            <p>Based in Israel &bull; Available worldwide</p>
+            <p>HaRoee 39, Misgav Dov, Israel &bull; Available worldwide</p>
         </div>
     `,
 };

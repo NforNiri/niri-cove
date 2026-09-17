@@ -433,8 +433,8 @@ button {
 
 /* Projects */
 .project-grid {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 8px;
 }
 
@@ -453,6 +453,15 @@ button {
     transform: translateX(4px);
     background: rgba(255, 255, 255, 0.55);
     border-color: var(--sunset);
+}
+
+/* Projects without a public URL */
+.project-card-static,
+.project-card-static:hover {
+    transform: none;
+    background: rgba(255, 255, 255, 0.2);
+    border-color: var(--rope);
+    cursor: default;
 }
 
 .project-card h4 {
@@ -1077,7 +1086,8 @@ kbd {
         font-size: 28px;
     }
 
-    .creative-grid {
+    .creative-grid,
+    .project-grid {
         grid-template-columns: 1fr;
     }
 
