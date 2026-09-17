@@ -7,7 +7,6 @@ const PROJECTS = [
     { name: 'A&amp;D', url: 'https://and-law.co.il/', tags: [CD, PM] },
     { name: 'Tictruck', url: 'https://www.tictruck.co.il/', tags: [PM] },
     { name: 'Simplex3d', url: 'https://www.simplex3d.com/', tags: ['Product Management', 'Analytics'] },
-    { name: 'Daniel Matat Jewelry', url: 'https://woocommerce-1142719-5529229.cloudwaysapps.com/', tags: [PM] },
     { name: 'LPI Fire', url: 'https://lpifire.com/', tags: [PM] },
     { name: 'Dr Tal Rapaport', url: 'https://coreandcode.co.il/web/tal-rappaport/index.html', tags: [PM] },
     { name: 'Podcastia', url: 'https://podcastiya.co.il/', tags: [PM] },
