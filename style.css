@@ -1220,6 +1220,21 @@ kbd {
     white-space: nowrap;
 }
 
+@media (max-width: 640px) {
+    .collect-toast {
+        top: 78px;
+        left: 12px;
+        right: 12px;
+        transform: none;
+        white-space: normal;
+        text-align: center;
+        font-size: 16px;
+        letter-spacing: 1.5px;
+        line-height: 1.3;
+        padding: 0 72px 0 0; /* clear the minimap on the right */
+    }
+}
+
 /* ==========================================================================
    Chart menu
    ========================================================================== */
@@ -1963,6 +1978,10 @@ kbd {
     border-color: #8E2622;
 }
 
+.log-entry:not(.is-done) .log-seal {
+    color: var(--ink-faint);
+}
+
 .log-entry-body {
     display: flex;
     flex-direction: column;
@@ -2278,4 +2297,206 @@ body.menu-open #treasure-map {
     body.panel-open #touch-controls {
         display: none;
     }
+}
+
+/* ==========================================================================
+   Living world: parrot speech bubble, message in a bottle
+   ========================================================================== */
+.parrot-anchor {
+    position: absolute;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+
+.parrot-bubble {
+    position: absolute;
+    left: 0;
+    bottom: 12px;
+    width: max-content;
+    max-width: 240px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+    padding: 8px 12px 9px;
+    border: 2px solid var(--rope);
+    border-radius: 12px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+    color: var(--ink);
+    font-size: 12.5px;
+    line-height: 1.35;
+    pointer-events: none;
+    user-select: none;
+    /* Centre on the anchor point; GSAP owns transform (scale) */
+    translate: -50% 0;
+    transform-origin: 50% 100%;
+}
+
+.parrot-bubble::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: -9px;
+    width: 14px;
+    height: 14px;
+    margin-left: -7px;
+    background: var(--parchment);
+    border-right: 2px solid var(--rope);
+    border-bottom: 2px solid var(--rope);
+    transform: rotate(45deg);
+}
+
+.parrot-name {
+    font-family: var(--font-heading);
+    font-size: 8.5px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--wood);
+}
+
+.parrot-text {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    text-wrap: balance;
+}
+
+.parrot-text .hint-keys {
+    display: inline-flex;
+    gap: 3px;
+}
+
+.parrot-text kbd {
+    height: 20px;
+    min-width: 20px;
+    font-size: 9px;
+}
+
+/* The bubble's parent hint bar is redundant while the parrot is aboard */
+body.panel-open .parrot-bubble,
+body.menu-open .parrot-bubble,
+body.chart-open .parrot-bubble,
+body.bottle-open .parrot-bubble,
+body.intro-active .parrot-bubble,
+body.lightbox-open .parrot-bubble {
+    opacity: 0 !important;
+}
+
+@media (max-width: 600px) {
+    .parrot-bubble {
+        max-width: 190px;
+        font-size: 11.5px;
+        padding: 6px 10px 7px;
+    }
+}
+
+#bottle-card {
+    position: fixed;
+    inset: 0;
+    z-index: 330;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.bottle-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(8, 38, 40, 0.55);
+    backdrop-filter: blur(4px);
+}
+
+.bottle-note {
+    position: relative;
+    width: min(92vw, 420px);
+    padding: 26px 28px 22px;
+    border: 3px solid var(--wood);
+    border-radius: 6px 14px 8px 12px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5), inset 0 0 0 2px rgba(255, 255, 255, 0.3);
+    color: var(--ink);
+    text-align: left;
+}
+
+.bottle-note::before {
+    /* Water stain */
+    content: '';
+    position: absolute;
+    right: 18px;
+    top: 14px;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(139, 90, 43, 0.14), transparent 70%);
+    pointer-events: none;
+}
+
+.bottle-eyebrow {
+    font-family: var(--font-heading);
+    font-size: 10px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--wood);
+    margin-bottom: 8px;
+}
+
+.bottle-title {
+    font-family: var(--font-display);
+    font-size: 30px;
+    line-height: 1.05;
+    margin-bottom: 12px;
+}
+
+.bottle-text {
+    font-size: 14.5px;
+    line-height: 1.55;
+    color: var(--ink-soft);
+}
+
+.bottle-link {
+    display: inline-block;
+    margin-top: 12px;
+    font-family: var(--font-heading);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--sea-dark, #0F3D3E);
+    text-decoration: none;
+    border-bottom: 1.5px solid currentColor;
+}
+
+.bottle-foot {
+    margin-top: 16px;
+    font-size: 11.5px;
+    color: var(--ink-faint);
+    font-style: italic;
+}
+
+.bottle-close {
+    margin-top: 16px;
+    width: 100%;
+    font-family: var(--font-heading);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 11px 16px;
+    border-radius: 10px;
+    border: 2px solid var(--wood);
+    background: linear-gradient(180deg, var(--parchment-light), var(--parchment));
+    color: var(--ink);
+    cursor: pointer;
+    transition: transform 0.15s;
+}
+
+.bottle-close:hover {
+    transform: translateY(-1px);
+}
+
+body.bottle-open #hint-bar,
+body.bottle-open #interact-prompt {
+    opacity: 0 !important;
 }

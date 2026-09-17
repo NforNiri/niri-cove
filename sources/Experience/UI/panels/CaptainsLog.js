@@ -38,10 +38,23 @@ export default function captainsLog() {
             <span>${r.title}${n >= r.at ? '' : ` <em>(${r.at - n} more)</em>`}</span>
         </li>`).join('');
 
-    const secrets = Object.keys(p.state.secrets || {});
-    const secretsHtml = secrets.length
-        ? `<div class="panel-section"><h4>Secrets</h4><div class="panel-tags">${secrets.map((s) => `<span class="tag tag-done">${SECRET_LABELS[s] || s}</span>`).join('')}</div></div>`
-        : '';
+    const found = Object.keys(p.state.secrets || {}).filter((s) => SECRETS[s]).length;
+    const secretsHtml = `
+        <div class="panel-section">
+            <h4>Sightings &mdash; ${found} / ${Object.keys(SECRETS).length}</h4>
+            <ul class="log-list">${Object.entries(SECRETS).map(([id, s]) => {
+                const done = p.hasSecret(id);
+                return `
+                <li class="log-entry ${done ? 'is-done' : ''}">
+                    <span class="log-seal">${done ? '✓' : '?'}</span>
+                    <div class="log-entry-body">
+                        <strong>${done ? s.label : 'Unknown sighting'}</strong>
+                        <span class="log-where">${done ? stamp(p.state.secrets[id]) : ''}</span>
+                        ${done ? '' : `<span class="log-hint">${s.hint}</span>`}
+                    </div>
+                </li>`;
+            }).join('')}</ul>
+        </div>`;
 
     return {
         title: "Captain's Log",
@@ -105,10 +118,10 @@ export default function captainsLog() {
     };
 }
 
-const SECRET_LABELS = {
-    kraken: 'Something in the deep',
-    bottle: 'Message in a bottle',
-    whale: 'The night whale',
-    dolphins: 'Dolphin escort',
-    merchant: 'Hailed the merchant',
+const SECRETS = {
+    dolphins: { label: 'Dolphin escort',        hint: 'Hold full sail on open water for a while.' },
+    merchant: { label: 'Hailed the merchant',   hint: 'A brig runs the outer lanes. Come alongside.' },
+    bottle:   { label: 'Message in a bottle',   hint: 'Glass glints on the lagoon now and then.' },
+    whale:    { label: 'The night whale',       hint: 'Drift quietly after dark and watch the swell.' },
+    kraken:   { label: 'Something in the deep', hint: 'Far past the east shoal, on a dark night.' },
 };

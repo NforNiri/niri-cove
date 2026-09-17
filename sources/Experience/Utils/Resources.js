@@ -65,7 +65,8 @@ export default class Resources extends EventEmitter {
                         });
                     },
                     (error) => {
-                        console.error(`Error loading ${source.name}:`, error);
+                        if (source.optional) console.info(`Optional asset not present: ${source.name} — using fallback`);
+                        else console.error(`Error loading ${source.name}:`, error);
                         // Still count as loaded to avoid blocking
                         this.sourceLoaded(source, null);
                     }

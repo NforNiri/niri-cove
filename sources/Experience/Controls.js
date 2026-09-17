@@ -30,9 +30,12 @@ export default class Controls {
     }
 
     detectMobile() {
+        // A touchscreen alone is not "mobile": Windows laptops with touch and a
+        // mouse should keep WASD. Require a coarse primary pointer or a mobile UA.
+        const coarse = typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
         return (
-            navigator.maxTouchPoints > 1 ||
             /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) ||
+            (coarse && navigator.maxTouchPoints > 0) ||
             window.innerWidth < 768
         );
     }

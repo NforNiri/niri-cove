@@ -6,8 +6,11 @@ import Floaters from './Floaters.js';
 import Shoals from './Shoals.js';
 import Gulls from './Gulls.js';
 import Interactables from './Interactable.js';
+import Weather from './Weather.js';
+import Events from './Events.js';
 import Boat from '../Vehicle/Boat.js';
 import BoatVisual from '../Vehicle/BoatVisual.js';
+import Parrot from '../Vehicle/Parrot.js';
 import { buildIslands } from './islands/index.js';
 import UI from '../UI/UI.js';
 
@@ -31,9 +34,13 @@ export default class World {
 
         this.boat = new Boat(this.ocean);
         this.boatVisual = new BoatVisual(this.boat, this.ocean);
+        this.parrot = new Parrot(this.boatVisual);
 
         exp.addUpdate(2, () => this.boat.update(exp.controls, exp.time.delta));
         exp.addUpdate(3, () => this.boatVisual.update(exp.controls));
+
+        // Squalls, gusts, rainbow (drives ocean.waveScale + Environment palette)
+        this.weather = new Weather(this.ocean);
 
         this.islands = buildIslands();
         this.shoals = new Shoals();
@@ -57,5 +64,8 @@ export default class World {
         // Island deeds (micro-quests)
         this.interactables = new Interactables(this.boat);
         for (const island of this.islands) island.registerQuest(this.interactables);
+
+        // Living world: merchant run, dolphins, night whale, bottles, the deep
+        this.events = new Events(this.ocean);
     }
 }

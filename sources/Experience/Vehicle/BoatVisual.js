@@ -63,7 +63,11 @@ export default class BoatVisual {
      */
     buildSail() {
         if (!this.model) return;
-        const sail = this.model.getObjectByName('sail-a');
+        let sail = this.model.getObjectByName('sail-a');
+        if (!sail) {
+            // Hero model: any mesh named like a sail
+            this.model.traverse((c) => { if (!sail && c.isMesh && /sail/i.test(c.name)) sail = c; });
+        }
         if (!sail || !sail.isMesh) return;
 
         sail.geometry.computeBoundingBox();
@@ -99,8 +103,16 @@ export default class BoatVisual {
         this.sailMesh = sail;
     }
 
+    /**
+     * Hull. A hero model (`static/models/hero/hero-boat.glb`, generated in
+     * Meshy and cleaned in Blender) is used when present; otherwise the kit's
+     * ship-small. Rig points come from empties named rig_sail / rig_lantern /
+     * rig_pennant / rig_perch, with sensible fallbacks for the kit boat.
+     */
     buildHull() {
-        const model = cloneModel(this.resources, 'ship-small');
+        const hero = this.resources.items['hero-boat'];
+        const model = hero && hero.scene ? cloneModel(this.resources, 'hero-boat') : cloneModel(this.resources, 'ship-small');
+        this.isHero = !!(hero && hero.scene && model);
         if (!model) {
             const fallback = new THREE.Mesh(
                 new THREE.BoxGeometry(1.8, 0.9, HULL_LENGTH),
@@ -108,18 +120,44 @@ export default class BoatVisual {
             );
             this.pivot.add(fallback);
             this.mastTop = 2.5;
+            this.rig = this.defaultRig();
             return;
         }
 
         fitFootprint(model, HULL_LENGTH, -0.5);
-        // Kenney ships point along +Z; our forward is -Z
-        model.rotation.y = Math.PI;
+        // Kenney ships point along +Z; our forward is -Z. Hero models are
+        // authored -Z forward already.
+        if (!this.isHero) model.rotation.y = Math.PI;
         this.pivot.add(model);
         this.model = model;
 
         this.pivot.updateMatrixWorld(true);
         const b = bounds(model);
         this.mastTop = b.max.y;
+        this.rig = this.readRig(model);
+    }
+
+    defaultRig() {
+        // Kit boat: the stern rail cap sits at y≈1.5 around z≈1.8
+        return {
+            lantern: new THREE.Vector3(0, 1.66, 1.94),
+            pennant: new THREE.Vector3(0, this.mastTop - 0.05, 0.05),
+            perch: new THREE.Vector3(0.76, 1.68, 1.8),
+        };
+    }
+
+    /** Positions of named rig empties in pivot space, falling back per point. */
+    readRig(model) {
+        const rig = this.defaultRig();
+        const map = { rig_lantern: 'lantern', rig_pennant: 'pennant', rig_perch: 'perch' };
+        const v = new THREE.Vector3();
+        for (const [nodeName, key] of Object.entries(map)) {
+            const node = model.getObjectByName(nodeName);
+            if (!node) continue;
+            node.getWorldPosition(v);
+            rig[key] = this.pivot.worldToLocal(v.clone());
+        }
+        return rig;
     }
 
     buildPennant() {
@@ -163,7 +201,7 @@ export default class BoatVisual {
         });
 
         this.pennant = new THREE.Mesh(geo, this.pennantMat);
-        this.pennant.position.set(0, this.mastTop - 0.05, 0.05);
+        this.pennant.position.copy(this.rig.pennant);
         this.pivot.add(this.pennant);
     }
 
@@ -172,7 +210,7 @@ export default class BoatVisual {
             new THREE.SphereGeometry(0.09, 10, 8),
             new THREE.MeshStandardMaterial({ color: 0xFFD9A0, emissive: 0xFFA640, emissiveIntensity: 0 })
         );
-        this.lanternGlow.position.set(0, 1.05, 1.75);
+        this.lanternGlow.position.copy(this.rig.lantern);
         this.pivot.add(this.lanternGlow);
 
         this.lantern = new THREE.PointLight(0xFFB067, 0, 9, 1.6);
@@ -199,12 +237,12 @@ export default class BoatVisual {
 
         const t = this.time.elapsed / 1000;
         const dt = this.time.delta / 1000;
-        this.pennantMat.uniforms.uTime.value = t;
-        this.pennantMat.uniforms.uWind.value = 0.6 + Math.min(this.boat.speed / 7, 1) * 0.9;
-
-        // Sail fills with forward speed (and a bit of ambient wind when idle)
         const world = this.experience.world;
         const gust = world && world.weather ? world.weather.wind : 0;
+        this.pennantMat.uniforms.uTime.value = t;
+        this.pennantMat.uniforms.uWind.value = 0.6 + Math.min(this.boat.speed / 7, 1) * 0.9 + gust * 1.1;
+
+        // Sail fills with forward speed (and a bit of ambient wind when idle)
         const targetWind = 0.25 + Math.max(this.boat.forwardSpeed, 0) / 11.5 * 0.75 + gust * 0.4;
         this.wind += (targetWind - this.wind) * Math.min(1, dt * 2.5);
         if (this.sailUniforms) {

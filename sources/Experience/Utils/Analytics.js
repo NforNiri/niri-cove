@@ -49,6 +49,8 @@ export default class Analytics {
         exp.on('video:play', (id, title) => this.event('video_play', { id, title }));
         exp.on('work:filter', (filter, shown) => this.event('work_filter', { filter, shown }));
         exp.on('work:expand', (name) => this.event('work_expand', { name }));
+        exp.on('weather:squall', () => this.event('squall'));
+        exp.on('event:bottle', (title) => this.event('bottle', { title }));
 
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'hidden') this.sessionEnd();

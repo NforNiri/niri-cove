@@ -41,6 +41,16 @@ export default class Interactables {
         return entry;
     }
 
+    /** Drop a spot (drifting bottles, one-off events). */
+    remove(entry) {
+        const i = this.items.indexOf(entry);
+        if (i >= 0) this.items.splice(i, 1);
+        if (this.active === entry) {
+            this.active = null;
+            this.hidePrompt();
+        }
+    }
+
     showPrompt(item) {
         const label = item.done && item.repeatLabel ? item.repeatLabel : item.label;
         this.prompt.querySelector('.interact-label').textContent = label;
@@ -59,7 +69,8 @@ export default class Interactables {
     }
 
     update() {
-        if (!this.boat || !this.boat.rigidBody || this.controls.locked) return;
+        if (!this.boat || !this.boat.rigidBody) return;
+        if (this.controls.locked) { this.controls.consumeInteract(); return; }
         const p = this.boat.getPosition();
 
         let best = null;
@@ -76,7 +87,10 @@ export default class Interactables {
             else this.hidePrompt();
         }
 
-        if (this.active && this.controls.consumeInteract()) this.trigger();
+        // Always consume the press: a stray E/tap with nothing in range must
+        // not fire the next spot the moment the boat drifts into it.
+        const pressed = this.controls.consumeInteract();
+        if (this.active && pressed) this.trigger();
     }
 
     async trigger() {

@@ -11,6 +11,8 @@ const PALETTE = {
     day:    { zenith: 0x3FA9C9, horizon: 0xBFE3E6, sun: 0xFFEBC7, deep: 0x137C8B, shallow: 0x5FD3C2 },
     golden: { zenith: 0x5E9EC4, horizon: 0xFFC48A, sun: 0xFFB070, deep: 0x1B6F85, shallow: 0x6AC7BB },
     night:  { zenith: 0x0B1A33, horizon: 0x1E3A5F, sun: 0x8FA9D6, deep: 0x0A2E3F, shallow: 0x1F5D66 },
+    // Squall: slate sky, pewter sea
+    storm:  { zenith: 0x3A4650, horizon: 0x7C8A91, sun: 0xB9C2C6, deep: 0x17454F, shallow: 0x3E8A88 },
 };
 
 const toColor = (hex) => new THREE.Color(hex);
@@ -84,6 +86,8 @@ export default class Environment {
                 uSunDir: { value: new THREE.Vector3(0, 1, 0) },
                 uNight: { value: 0 },
                 uTime: { value: 0 },
+                uStorm: { value: 0 },
+                uFlash: { value: 0 },
             },
             vertexShader: /* glsl */ `
                 varying vec3 vDir;
@@ -101,6 +105,8 @@ export default class Environment {
                 uniform vec3 uSunDir;
                 uniform float uNight;
                 uniform float uTime;
+                uniform float uStorm;
+                uniform float uFlash;
                 varying vec3 vDir;
 
                 float hash(vec3 p) {
@@ -124,17 +130,26 @@ export default class Environment {
                     col = mix(col, uHorizon * 0.85, clamp(-h * 3.0, 0.0, 1.0));
 
                     float s = max(dot(d, uSunDir), 0.0);
-                    col += uSunColor * (pow(s, 400.0) * 2.0 + pow(s, 10.0) * 0.28);
+                    col += uSunColor * (pow(s, 400.0) * 2.0 + pow(s, 10.0) * 0.28) * (1.0 - uStorm * 0.85);
 
                     #ifdef CLOUDS
                         if (h > 0.02) {
-                            vec2 uv = d.xz / (h + 0.25) * 1.4 + vec2(uTime * 0.004, uTime * 0.002);
+                            vec2 uv = d.xz / (h + 0.25) * 1.4 + vec2(uTime * (0.004 + uStorm * 0.01), uTime * 0.002);
                             float n = noise2(uv) * 0.55 + noise2(uv * 2.3 + 7.0) * 0.3 + noise2(uv * 5.1 + 3.0) * 0.15;
-                            float cloud = smoothstep(0.56, 0.74, n) * smoothstep(0.02, 0.18, h);
+                            // Squall: cover closes in and the clouds go slate
+                            float cloud = smoothstep(0.56 - uStorm * 0.3, 0.74 - uStorm * 0.22, n) * smoothstep(0.02, 0.18, h);
                             vec3 cloudCol = mix(vec3(1.0, 0.97, 0.92), uSunColor, 0.35) * (1.0 - uNight * 0.85);
+                            cloudCol = mix(cloudCol, vec3(0.3, 0.34, 0.38) * (1.0 - uNight * 0.7), uStorm * (0.7 + 0.3 * n));
                             col = mix(col, cloudCol, cloud * 0.85);
                         }
+                    #else
+                        if (uStorm > 0.01 && h > 0.02) {
+                            col = mix(col, vec3(0.36, 0.4, 0.44) * (1.0 - uNight * 0.7), uStorm * 0.55 * smoothstep(0.02, 0.3, h));
+                        }
                     #endif
+
+                    // Lightning: the whole dome brightens for a few frames
+                    col += vec3(0.75, 0.8, 0.95) * uFlash * (0.35 + 0.65 * smoothstep(0.0, 0.5, h));
 
                     if (uNight > 0.01 && h > 0.0) {
                         float star = hash(floor(d * 260.0));
@@ -206,6 +221,19 @@ export default class Environment {
         lerp3(this._deep, 'deep');
         lerp3(this._shallow, 'shallow');
 
+        // Squall: pull everything toward slate (less at night, it is already dark)
+        const weather = this.experience.world ? this.experience.world.weather : null;
+        const storm = weather ? weather.intensity * (1 - this.nightFactor * 0.6) : 0;
+        const flash = weather ? weather.flash : 0;
+        if (storm > 0.001) {
+            this._zenith.lerp(PALETTE.storm.zenith, storm * 0.85);
+            this._horizon.lerp(PALETTE.storm.horizon, storm * 0.85);
+            this._sun.lerp(PALETTE.storm.sun, storm * 0.7);
+            this._deep.lerp(PALETTE.storm.deep, storm * 0.6);
+            this._shallow.lerp(PALETTE.storm.shallow, storm * 0.6);
+        }
+        this.storm = storm;
+
         // Directional light
         const boat = this.experience.world ? this.experience.world.boat : null;
         const focus = boat ? boat.getPosition() : { x: 0, y: 0, z: 0 };
@@ -215,13 +243,13 @@ export default class Environment {
             focus.z + this.sunDir.z * 90
         );
         this.sunLight.target.position.set(focus.x, 0, focus.z);
-        this.sunLight.intensity = THREE.MathUtils.lerp(0.2, 1.15, 1 - this.nightFactor) * (0.75 + above * 0.25);
+        this.sunLight.intensity = THREE.MathUtils.lerp(0.2, 1.15, 1 - this.nightFactor) * (0.75 + above * 0.25) * (1 - storm * 0.55);
         this.sunLight.color.copy(this._sun);
 
         this.hemiLight.color.copy(this._horizon);
         this.hemiLight.groundColor.copy(this._deep);
-        this.hemiLight.intensity = THREE.MathUtils.lerp(0.25, 0.55, 1 - this.nightFactor);
-        this.ambientLight.intensity = THREE.MathUtils.lerp(0.12, 0.22, 1 - this.nightFactor);
+        this.hemiLight.intensity = THREE.MathUtils.lerp(0.25, 0.55, 1 - this.nightFactor) * (1 - storm * 0.25) + flash * 1.6;
+        this.ambientLight.intensity = THREE.MathUtils.lerp(0.12, 0.22, 1 - this.nightFactor) + flash * 0.6;
 
         // Water reflects a blend of horizon and zenith, not the bright haze alone
         this._c2.copy(this._horizon).lerp(this._zenith, 0.55);
@@ -234,10 +262,14 @@ export default class Environment {
         sky.uSunDir.value.copy(this.sunDir);
         sky.uNight.value = this.nightFactor;
         sky.uTime.value = this.time.elapsed / 1000;
+        sky.uStorm.value = storm;
+        sky.uFlash.value = flash;
         const cam = this.experience.camera?.instance;
         if (cam) this.sky.position.copy(cam.position);
 
         this.scene.fog.color.copy(this._horizon);
+        this.scene.fog.near = THREE.MathUtils.lerp(70, 34, storm);
+        this.scene.fog.far = THREE.MathUtils.lerp(260, 150, storm);
         this.renderer.instance.setClearColor(this._horizon);
         this.renderer.setMood(this.nightFactor);
 

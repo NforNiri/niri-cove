@@ -71,10 +71,22 @@ export default class Hints {
         this.show(id);
     }
 
+    /** The ship's parrot delivers hints when he is aboard; the bar is the fallback. */
+    get parrot() {
+        const world = this.experience.world;
+        return world && world.parrot ? world.parrot : null;
+    }
+
     show(id) {
         const h = this.hints()[id];
         if (!h) return;
         this.current = id;
+        const parrot = this.parrot;
+        if (parrot) {
+            const keys = h.keys ? `<span class="hint-keys">${h.keys}</span>` : '';
+            parrot.say(`${keys}<span>${h.text}</span>`, { sticky: true, html: true, squawk: id === 'sail' });
+            return;
+        }
         this.el.querySelector('.hint-keys').innerHTML = h.keys;
         this.el.querySelector('.hint-text').textContent = h.text;
         gsap.killTweensOf(this.el);
@@ -83,6 +95,8 @@ export default class Hints {
 
     hide() {
         this.current = null;
+        const parrot = this.parrot;
+        if (parrot) parrot.clear();
         gsap.killTweensOf(this.el);
         gsap.to(this.el, { opacity: 0, y: 14, duration: 0.35, ease: 'power2.in' });
     }
@@ -90,9 +104,21 @@ export default class Hints {
     satisfy(id) {
         this.queue = this.queue.filter((k) => k !== id);
         if (this.current === id) {
-            gsap.to(this.el, { scale: 1.06, duration: 0.12, yoyo: true, repeat: 1, ease: 'power1.inOut' });
-            setTimeout(() => { if (this.current === id) this.next(); }, 500);
+            const parrot = this.parrot;
+            if (parrot) {
+                // Acknowledge, then move on
+                parrot.say(`<span>${this.praise()}</span>`, { sticky: true, html: true });
+                setTimeout(() => { if (this.current === id) this.next(); }, 1400);
+            } else {
+                gsap.to(this.el, { scale: 1.06, duration: 0.12, yoyo: true, repeat: 1, ease: 'power1.inOut' });
+                setTimeout(() => { if (this.current === id) this.next(); }, 500);
+            }
         }
+    }
+
+    praise() {
+        const lines = ['Aye, that\'s it!', 'Ha! Natural sailor.', 'Good. Now we\'re sailing.', 'That\'s the way, Captain.'];
+        return lines[Math.floor(Math.random() * lines.length)];
     }
 
     update() {

@@ -141,6 +141,13 @@ export default class Ocean {
     renderReflection() {
         if (!this.useReflection || !this.reflectionRT || !this.mesh) return;
         const gl = this.renderer.instance;
+
+        // The mirror pass reuses the main pass's shadow maps. Until the sun has
+        // rendered one, shadow samplers would bind an empty texture and every
+        // draw logs a GL sampler mismatch; skip the pass for those first frames.
+        const env = this.experience.world && this.experience.world.environment;
+        const sun = env && env.sunLight;
+        if (gl.shadowMap.enabled && sun && sun.castShadow && !sun.shadow.map) return;
         const camera = this.experience.camera.instance;
         const mirror = this.mirrorCamera;
 

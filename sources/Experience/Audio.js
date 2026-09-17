@@ -80,6 +80,17 @@ export default class Audio {
         // Positional loops (volume set per frame from distance)
         this.sounds.campfire = this.createHowl('/sounds/campfire.wav', { loop: true, volume: 0 });
         this.sounds.projector = this.createHowl('/sounds/projector.wav', { loop: true, volume: 0 });
+
+        // Weather + living world
+        this.sounds.rain = this.createHowl('/sounds/rain.wav', { loop: true, volume: 0 });
+        this.sounds.thunder = this.createHowl('/sounds/thunder.wav', { volume: 0.55 });
+        this.sounds.dolphin = this.createHowl('/sounds/dolphin.wav', { volume: 0.35 });
+        this.sounds.whale = this.createHowl('/sounds/whale.wav', { volume: 0.5 });
+        this.sounds.parrot = this.createHowl('/sounds/parrot.wav', { volume: 0.28 });
+        this.sounds.bottle = this.createHowl('/sounds/bottle.wav', { volume: 0.45 });
+        this.sounds.kraken = this.createHowl('/sounds/kraken.wav', { volume: 0.6 });
+        this.sounds.horn = this.createHowl('/sounds/horn.wav', { volume: 0.4 });
+        this.rainLevel = 0;
     }
 
     createHowl(src, options = {}) {
@@ -127,13 +138,31 @@ export default class Audio {
             s.mute(this.musicMuted);
             s.play();
         }
-        for (const key of ['hullCreak', 'wake', 'campfire', 'projector']) {
+        for (const key of ['hullCreak', 'wake', 'campfire', 'projector', 'rain']) {
             const s = this.sounds[key];
             if (!s) continue;
             s.mute(this.sfxMuted);
-            if (key !== 'projector') s.play();
+            if (key !== 'projector' && key !== 'rain') s.play();
         }
         this.applyMusicMix();
+    }
+
+    /** Weather: start/stop the rain loop; level (0..1) sets its volume per frame. */
+    setRain(on) {
+        const s = this.sounds.rain;
+        if (!s || !this.started) return;
+        if (on && !s.playing()) { s.volume(0); s.play(); }
+        if (!on && s.playing()) {
+            s.fade(s.volume(), 0, 1500);
+            s.once('fade', () => { if (this.rainLevel < 0.01) s.stop(); });
+        }
+    }
+
+    setRainLevel(level) {
+        this.rainLevel = level;
+        const s = this.sounds.rain;
+        if (!s || !this.started || this.sfxMuted || !s.playing()) return;
+        if (level > 0.01) s.volume(Math.min(0.5, level * 0.5));
     }
 
     /** Register a world-space loop; volume/pan follow the camera every frame. */
@@ -156,7 +185,7 @@ export default class Audio {
     }
 
     baseVolume(key) {
-        const base = { gull: 0.3, bell: 0.4, splash: 0.4, cannon: 0.55 };
+        const base = { gull: 0.3, bell: 0.4, splash: 0.4, cannon: 0.55, dolphin: 0.35, whale: 0.5, kraken: 0.6, horn: 0.4, parrot: 0.28, bottle: 0.45 };
         return base[key] ?? 0.4;
     }
 
@@ -252,7 +281,7 @@ export default class Audio {
         for (const key of ['ambient', 'musicDay', 'musicNight']) {
             if (this.sounds[key]) this.sounds[key].mute(this.musicMuted);
         }
-        for (const key of ['hullCreak', 'wake', 'campfire', 'projector']) {
+        for (const key of ['hullCreak', 'wake', 'campfire', 'projector', 'rain']) {
             if (this.sounds[key]) this.sounds[key].mute(this.sfxMuted);
         }
         this.savePref();

@@ -5,6 +5,7 @@ const base = '/models/pirate';
 const models = [
     // Player boat + other vessels
     'ship-small',
+    'ship-medium',
     'ship-pirate-medium',
     'ship-wreck',
     'boat-row-small',
@@ -64,8 +65,16 @@ const models = [
     'rocks-sand-c',
 ];
 
-export default models.map((name) => ({
+const sources = models.map((name) => ({
     name,
     type: 'gltfModel',
     path: `${base}/${name}.glb`,
 }));
+
+// Hero assets (Meshy-generated, Blender-cleaned). Optional: when the file is
+// missing the kit model is used and nothing is logged as an error.
+// Author -Z forward, Y up, real-world scale (~4.2 m hull), with empties named
+// rig_sail / rig_lantern / rig_pennant / rig_perch and a mesh named "sail".
+sources.push({ name: 'hero-boat', type: 'gltfModel', path: '/models/hero/hero-boat.glb', optional: true });
+
+export default sources;

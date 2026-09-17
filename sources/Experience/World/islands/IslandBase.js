@@ -300,10 +300,16 @@ export default class IslandBase {
 
     update() {
         const t = this.time.elapsed / 1000;
+        const weather = this.experience.world?.weather;
+        const wind = weather ? weather.wind : 0;
+        // Gusts push the palms harder and faster, plus a lean downwind
+        const swayAmp = 1 + wind * 3.5;
+        const swaySpeed = 1 + wind * 1.2;
+        const lean = wind * 0.06;
         for (const a of this.animated) {
             if (a.kind === 'sway') {
-                a.obj.rotation.z = Math.sin(t * 0.9 + a.phase) * 0.025;
-                a.obj.rotation.x = Math.cos(t * 0.7 + a.phase) * 0.02;
+                a.obj.rotation.z = Math.sin(t * 0.9 * swaySpeed + a.phase) * 0.025 * swayAmp + lean;
+                a.obj.rotation.x = Math.cos(t * 0.7 * swaySpeed + a.phase) * 0.02 * swayAmp + Math.sin(t * 6.1 + a.phase) * wind * 0.012;
             } else if (a.kind === 'spin') {
                 a.obj.rotation.y += a.speed * (this.time.delta / 1000);
             } else if (a.kind === 'bob') {

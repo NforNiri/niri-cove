@@ -107,8 +107,9 @@ export default class Renderer {
     }
 
     detectQuality() {
-        const isMobile = navigator.maxTouchPoints > 1 ||
-            /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) ||
+        const coarse = typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
+        const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) ||
+            (coarse && navigator.maxTouchPoints > 0) ||
             window.innerWidth < 1024;
 
         let gpuTier = 'mid';
