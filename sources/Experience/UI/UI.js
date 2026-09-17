@@ -29,8 +29,10 @@ export default class UI {
 
         // Outbound clicks inside panels (for analytics)
         this.panel.element.addEventListener('click', (e) => {
-            const a = e.target.closest('a[href^="http"]');
-            if (a) this.experience.emit('panel:link', a.href);
+            const a = e.target.closest('a[href]');
+            if (!a) return;
+            if (a.dataset.track) this.experience.emit('panel:track', a.dataset.track);
+            else if (a.href.startsWith('http')) this.experience.emit('panel:link', a.href);
         });
     }
 

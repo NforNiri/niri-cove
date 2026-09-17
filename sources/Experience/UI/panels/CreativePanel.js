@@ -1,76 +1,82 @@
+import Experience from '../../Experience.js';
+import Lightbox from '../Lightbox.js';
+
+/**
+ * Creative reel. `id` is the YouTube id; thumbnails come straight from
+ * i.ytimg.com so there is nothing to host. `start` = seconds offset.
+ */
+export const VIDEOS = [
+    { group: 'Projection mapping', id: 'F58rJUxnpZ4', title: 'XR Dome', desc: '360° projection dome for Intel and the kids of Southern Israel' },
+    { group: 'Projection mapping', id: 'm0lJE7ubgmU', start: 137, title: 'Beit Herzel', desc: '3D projection mapping on Beit Herzel at Hulda Forest' },
+    { group: 'Projection mapping', id: 'k-5wwCOuT1E', title: 'The Dress', desc: '8-metre diameter dress projection mapping' },
+    { group: 'Projection mapping', id: 'vBmGXVHEyjE', title: 'Eldad Zitrin Live', desc: 'Live projection mapping at Sitria' },
+
+    { group: 'Short films', id: 'ycy5WTETkss', title: 'My Girl', desc: 'Experimental short film' },
+    { group: 'Short films', id: 'B5RvsAgNhuQ', title: 'Four Point Something Seconds', desc: 'The escalating process of living on the edge' },
+    { group: 'Short films', id: '93_Z17oB5Ks', title: 'PaperCut', desc: 'The looped life of a misunderstood man' },
+
+    { group: 'Commercial & music', id: 'br7YP-E1f3Y', title: 'Eden Alene — Set Me Free', desc: 'Eurovision Song Contest music video' },
+    { group: 'Commercial & music', id: 'T2YcnsDmyGM', title: 'The Idan Raichel Project', desc: 'With Nasrin Kadri' },
+    { group: 'Commercial & music', id: 'Kg6llG9NEaU', title: 'Kol HaShchoona, Kan 11', desc: 'Broadcast work for Kan 11', url: 'https://www.youtube.com/watch?v=Kg6llG9NEaU&list=PLLttfoK87AdW80mtWj6BtBsDWN0f8wCKI&index=3' },
+    { group: 'Commercial & music', id: 'xGfdsqyLeJ4', title: 'TAU Innovation', desc: 'Conference video invitation' },
+];
+
+export const REEL_URL = 'https://vimeo.com/morethanvideos';
+
+export const thumbUrl = (id, q = 'hqdefault') => `https://i.ytimg.com/vi/${id}/${q}.jpg`;
+
+const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
+
+const videoCard = (v) => `
+    <button class="creative-card" data-id="${v.id}" type="button" aria-label="Play ${esc(v.title)}">
+        <span class="creative-thumb">
+            <img src="${thumbUrl(v.id)}" alt="" loading="lazy" decoding="async" width="480" height="360">
+            <span class="creative-play"></span>
+        </span>
+        <span class="creative-meta">
+            <h5>${esc(v.title)}</h5>
+            <p>${esc(v.desc)}</p>
+        </span>
+    </button>`;
+
+const groups = [...new Set(VIDEOS.map((v) => v.group))];
+
 export default {
     title: 'Lantern Bay',
     kicker: 'Creative — video art & production',
     html: `
         <div class="panel-section">
             <h3>Video Art &amp; Production</h3>
-            <p>A decade of bringing artistic visions to life, from projection mapping installations to short films and commercial work.</p>
+            <p>A decade of bringing artistic visions to life, from projection mapping installations to short films and commercial work. Everything plays right here in the bay.</p>
         </div>
 
+        ${groups.map((g) => `
         <div class="panel-section">
-            <h4>Projection mapping</h4>
+            <h4>${esc(g)}</h4>
             <div class="creative-grid">
-                <a href="https://www.youtube.com/watch?v=F58rJUxnpZ4" target="_blank" rel="noopener" class="creative-card">
-                    <h5>XR Dome</h5>
-                    <p>360° projection dome for Intel and the kids of Southern Israel</p>
-                </a>
-                <a href="https://www.youtube.com/watch?v=m0lJE7ubgmU&t=137s" target="_blank" rel="noopener" class="creative-card">
-                    <h5>Beit Herzel</h5>
-                    <p>3D projection mapping on Beit Herzel at Hulda Forest</p>
-                </a>
-                <a href="https://www.youtube.com/watch?v=k-5wwCOuT1E" target="_blank" rel="noopener" class="creative-card">
-                    <h5>The Dress</h5>
-                    <p>8-metre diameter dress projection mapping</p>
-                </a>
-                <a href="https://www.youtube.com/watch?v=vBmGXVHEyjE" target="_blank" rel="noopener" class="creative-card">
-                    <h5>Eldad Zitrin Live</h5>
-                    <p>Live projection mapping at Sitria</p>
-                </a>
+                ${VIDEOS.filter((v) => v.group === g).map(videoCard).join('')}
             </div>
-        </div>
+        </div>`).join('')}
 
         <div class="panel-section">
-            <h4>Short films</h4>
-            <div class="creative-grid">
-                <a href="https://www.youtube.com/watch?v=ycy5WTETkss" target="_blank" rel="noopener" class="creative-card">
-                    <h5>My Girl</h5>
-                    <p>Experimental short film</p>
-                </a>
-                <a href="https://www.youtube.com/watch?v=B5RvsAgNhuQ" target="_blank" rel="noopener" class="creative-card">
-                    <h5>Four Point Something Seconds</h5>
-                    <p>The escalating process of living on the edge</p>
-                </a>
-                <a href="https://www.youtube.com/watch?v=93_Z17oB5Ks" target="_blank" rel="noopener" class="creative-card">
-                    <h5>PaperCut</h5>
-                    <p>The looped life of a misunderstood man</p>
-                </a>
-            </div>
-        </div>
-
-        <div class="panel-section">
-            <h4>Commercial &amp; music</h4>
-            <div class="creative-grid">
-                <a href="https://www.youtube.com/watch?v=br7YP-E1f3Y" target="_blank" rel="noopener" class="creative-card">
-                    <h5>Eden Alene — Set Me Free</h5>
-                    <p>Eurovision Song Contest music video</p>
-                </a>
-                <a href="https://www.youtube.com/watch?v=T2YcnsDmyGM" target="_blank" rel="noopener" class="creative-card">
-                    <h5>The Idan Raichel Project</h5>
-                    <p>With Nasrin Kadri</p>
-                </a>
-                <a href="https://www.youtube.com/watch?v=Kg6llG9NEaU&list=PLLttfoK87AdW80mtWj6BtBsDWN0f8wCKI&index=3" target="_blank" rel="noopener" class="creative-card">
-                    <h5>Kol HaShchoona, Kan 11</h5>
-                    <p>Broadcast work for Kan 11</p>
-                </a>
-                <a href="https://www.youtube.com/watch?v=xGfdsqyLeJ4" target="_blank" rel="noopener" class="creative-card">
-                    <h5>TAU Innovation</h5>
-                    <p>Conference video invitation</p>
-                </a>
-                <a href="https://vimeo.com/morethanvideos" target="_blank" rel="noopener" class="creative-card">
-                    <h5>Commercial Reel</h5>
-                    <p>Selected commercial work from More Than Videos</p>
-                </a>
-            </div>
+            <a href="${REEL_URL}" target="_blank" rel="noopener" class="contact-btn contact-btn-wide">
+                <span class="contact-icon">&#9654;</span>
+                <span>Commercial reel — More Than Videos on Vimeo</span>
+            </a>
         </div>
     `,
+
+    mount(root) {
+        const exp = Experience.getInstance();
+        const onClick = (e) => {
+            const card = e.target.closest('.creative-card[data-id]');
+            if (!card) return;
+            const v = VIDEOS.find((x) => x.id === card.dataset.id);
+            if (!v) return;
+            Lightbox.get().open(v);
+            if (exp.audio) exp.audio.playUIClick();
+        };
+        root.addEventListener('click', onClick);
+        return () => root.removeEventListener('click', onClick);
+    },
 };

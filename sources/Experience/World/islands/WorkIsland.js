@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import gsap from 'gsap';
 import IslandBase from './IslandBase.js';
 import { cloneModel, fitFootprint } from '../../Utils/models.js';
+import Slideshow from '../../Utils/Slideshow.js';
+import { PROJECTS } from '../../UI/panels/projects.js';
 
 /**
  * The Shipyard — fortress walls, a watchtower, cannons and a pirate ship
@@ -59,6 +61,9 @@ export default class WorkIsland extends IslandBase {
         // Ship under repair, moored off the side, bobbing on the swell
         this.buildMooredShip();
 
+        // Billboard by the pier cycling the shipyard's launches
+        this.buildBillboard();
+
         this.palms(6, { start: 40, minR: this.radius * 0.7, maxR: this.radius * 0.85 });
         this.scatter(['rocks-a', 'rocks-b', 'rocks-c'], 5, { minR: 0.6, maxR: 0.9, start: 400, scale: 1 });
         this.scatter(['grass-patch', 'patch-grass'], 6, { minR: 0.3, maxR: 0.6, start: 500 });
@@ -68,6 +73,50 @@ export default class WorkIsland extends IslandBase {
         const l2 = this.polar(this.radius * 0.3, Math.PI + 0.22);
         this.addLight(l1.x, this.heightAt(l1.x, l1.z) + 2.6, l1.z, { intensity: 3.5, distance: 10, flicker: 0.15 });
         this.addLight(l2.x, this.heightAt(l2.x, l2.z) + 2.6, l2.z, { intensity: 3.5, distance: 10, flicker: 0.15 });
+    }
+
+    buildBillboard() {
+        // Facing the lagoon, just off the pier so the boat sees it on approach
+        const p = this.polar(this.radius * 0.58, -0.55);
+        const y = this.heightAt(p.x, p.z);
+        const holder = new THREE.Group();
+        holder.position.set(p.x, y, p.z);
+        holder.rotation.y = this.dockYaw - 0.55;
+
+        const postMat = new THREE.MeshStandardMaterial({ color: 0x6B4423, roughness: 0.9 });
+        for (const side of [-1, 1]) {
+            const post = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 2.6, 7), postMat);
+            post.position.set(side * 1.25, 1.3, 0);
+            post.castShadow = true;
+            holder.add(post);
+        }
+        const frame = new THREE.Mesh(new THREE.BoxGeometry(2.7, 1.75, 0.08), postMat);
+        frame.position.set(0, 1.95, 0);
+        frame.castShadow = true;
+        holder.add(frame);
+
+        const urls = PROJECTS.filter((pr) => pr.slug).map((pr) => `/thumbs/${pr.slug}.jpg`);
+        this.board = new Slideshow(urls, { width: 512, height: 320, hold: 3.2, fade: 0.8, fit: 'cover' });
+        this.boardMat = new THREE.MeshStandardMaterial({
+            map: this.board.texture,
+            emissiveMap: this.board.texture,
+            emissive: 0xFFFFFF,
+            emissiveIntensity: 0.0,
+            roughness: 0.6,
+        });
+        const face = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 1.56), this.boardMat);
+        face.position.set(0, 1.95, 0.05);
+        holder.add(face);
+
+        // A little lamp over the board so it reads at night
+        const lampMat = new THREE.MeshStandardMaterial({ color: 0xFFE2B0, emissive: 0xFFA640, emissiveIntensity: 0.3 });
+        const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), lampMat);
+        lamp.position.set(0, 2.95, 0.25);
+        holder.add(lamp);
+        this.boardLamp = lampMat;
+        this.group.add(holder);
+        this.boardWorld = { x: this.data.x + p.x, z: this.data.z + p.z };
+        this.addLight(p.x, y + 2.9, p.z, { intensity: 2.2, distance: 6, flicker: 0.05 });
     }
 
     buildCannonball() {
@@ -194,6 +243,17 @@ export default class WorkIsland extends IslandBase {
             const t = this.time.elapsed / 1000;
             this.moored.rotation.z = Math.sin(t * 0.5) * 0.02;
             this.moored.rotation.x = Math.cos(t * 0.37) * 0.015;
+        }
+        if (this.board) {
+            // Cycle only on HIGH and when the camera is close enough to read it
+            const high = this.experience.renderer && this.experience.renderer.quality === 'high';
+            const cam = this.experience.camera ? this.experience.camera.instance : null;
+            const near = cam ? Math.hypot(cam.position.x - this.boardWorld.x, cam.position.z - this.boardWorld.z) < 60 : true;
+            this.board.enabled = high && near;
+            if (this.board.enabled) this.board.update(Math.min(this.time.delta / 1000, 0.1));
+            const night = this.experience.world?.environment?.nightFactor ?? 0;
+            this.boardMat.emissiveIntensity = 0.15 + night * 0.7;
+            if (this.boardLamp) this.boardLamp.emissiveIntensity = 0.3 + night * 1.8;
         }
     }
 }

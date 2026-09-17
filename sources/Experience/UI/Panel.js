@@ -31,13 +31,18 @@ export default class Panel {
     show(zoneId, content) {
         if (this.currentZone === zoneId && this.isVisible) return;
 
+        // Let the previous content release listeners/timers
+        if (this.unmount) { try { this.unmount(); } catch (e) { /* noop */ } this.unmount = null; }
+
         this.currentZone = zoneId;
         this.element.querySelector('.panel-title').textContent = content.title;
         this.element.querySelector('.panel-kicker').innerHTML = content.kicker || '';
         const contentEl = this.element.querySelector('.panel-content');
         contentEl.innerHTML = content.html;
         contentEl.scrollTop = 0;
+        if (typeof content.mount === 'function') this.unmount = content.mount(contentEl, this) || null;
 
+        const wasVisible = this.isVisible;
         this.element.style.display = 'flex';
         this.isVisible = true;
         document.body.classList.add('panel-open');
@@ -45,13 +50,20 @@ export default class Panel {
         if (this.experience.audio) this.experience.audio.playPanelOpen();
 
         gsap.killTweensOf(this.element);
-        gsap.to(this.element, { x: '0%', opacity: 1, duration: 0.55, ease: 'power3.out' });
+        if (wasVisible) {
+            gsap.set(this.element, { x: '0%', opacity: 1, clipPath: 'inset(0 0 0% 0)' });
+        } else {
+            // Parchment unroll: slide in, then the sheet drops open from the rod
+            gsap.set(this.element, { x: '6%', opacity: 1, clipPath: 'inset(0 0 100% 0)' });
+            gsap.to(this.element, { x: '0%', duration: 0.5, ease: 'power3.out' });
+            gsap.to(this.element, { clipPath: 'inset(0 0 0% 0)', duration: 0.7, ease: 'power3.inOut' });
+        }
 
         const children = contentEl.children;
         if (children.length) {
             gsap.fromTo(children,
                 { y: 18, opacity: 0 },
-                { y: 0, opacity: 1, duration: 0.4, stagger: 0.05, delay: 0.2, ease: 'power2.out' }
+                { y: 0, opacity: 1, duration: 0.4, stagger: 0.05, delay: wasVisible ? 0.05 : 0.3, ease: 'power2.out' }
             );
         }
     }
@@ -70,6 +82,7 @@ export default class Panel {
                 this.element.style.display = 'none';
                 this.currentZone = null;
                 document.body.classList.remove('panel-open');
+                if (this.unmount) { try { this.unmount(); } catch (e) { /* noop */ } this.unmount = null; }
             },
         });
     }

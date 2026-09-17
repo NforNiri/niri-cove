@@ -218,8 +218,16 @@ export default class Audio {
         const nightStem = this.sounds.musicNight;
         // Equal-power crossfade, kept under the ambience so it never nags
         const n = THREE.MathUtils.clamp(this.night, 0, 1);
-        if (day) day.volume(Math.cos(n * Math.PI / 2) * 0.28);
-        if (nightStem) nightStem.volume(Math.sin(n * Math.PI / 2) * 0.3);
+        const duck = this.ducked ? 0.12 : 1;
+        if (day) day.volume(Math.cos(n * Math.PI / 2) * 0.28 * duck);
+        if (nightStem) nightStem.volume(Math.sin(n * Math.PI / 2) * 0.3 * duck);
+        if (this.sounds.ambient) this.sounds.ambient.volume(0.22 * (this.ducked ? 0.4 : 1));
+    }
+
+    /** Pull the music and sea down while a video plays in the lightbox. */
+    duckMusic(on) {
+        this.ducked = !!on;
+        if (this.started) this.applyMusicMix();
     }
 
     // ── One-shots ────────────────────────────────────────────────────────

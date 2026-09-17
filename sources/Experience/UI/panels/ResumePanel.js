@@ -7,6 +7,13 @@ export default {
             <p>I've built my career on end-to-end ownership of complex digital and creative projects, leading cross-functional teams, managing client relationships, and controlling budgets and timelines from brief to launch.</p>
         </div>
 
+        <div class="panel-section">
+            <a href="/captains-papers.pdf" download="Niri-Levy-Captains-Papers.pdf" class="contact-btn contact-btn-wide papers-btn" data-track="resume_pdf">
+                <span class="contact-icon">&#128220;</span>
+                <span>Captain's Papers &mdash; download the resume (PDF)</span>
+            </a>
+        </div>
+
         <div class="timeline">
             <div class="timeline-item">
                 <div class="timeline-date">Apr 2025 — Present</div>

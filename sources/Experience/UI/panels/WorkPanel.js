@@ -1,38 +1,36 @@
-const CD = 'Creative Direction';
-const PM = 'Project Management';
+import Experience from '../../Experience.js';
+import { PROJECTS, FILTERS } from './projects.js';
 
-// Mirrors the Selected Work grid on niri-portfolio.vercel.app
-const PROJECTS = [
-    { name: 'Localz', url: 'https://localz-group.com/', tags: [CD, PM] },
-    { name: 'A&amp;D', url: 'https://and-law.co.il/', tags: [CD, PM] },
-    { name: 'Tictruck', url: 'https://www.tictruck.co.il/', tags: [PM] },
-    { name: 'Simplex3d', url: 'https://www.simplex3d.com/', tags: ['Product Management', 'Analytics'] },
-    { name: 'LPI Fire', url: 'https://lpifire.com/', tags: [PM] },
-    { name: 'Dr Tal Rapaport', url: 'https://coreandcode.co.il/web/tal-rappaport/index.html', tags: [PM] },
-    { name: 'Podcastia', url: 'https://podcastiya.co.il/', tags: [PM] },
-    { name: 'Rakafot', url: 'https://rakafot.org.il/', tags: [CD, PM] },
-    { name: 'Force Media', url: 'https://forcemedia.co.il/', tags: [PM] },
-    { name: 'SparkingAI', url: 'https://www.sparking.ai/', tags: [CD, PM] },
-    { name: 'Justi', url: 'https://www.justi.co.il/', tags: [CD, PM] },
-    { name: 'Play and more', url: null, tags: [PM] },
-    { name: 'Mophet', url: 'https://www.mophet.com/', tags: [PM] },
-    { name: 'Shir Meidan', url: 'https://shirmeidan.com/', tags: [PM] },
-    { name: 'Proxi', url: 'https://proxi.co.il/', tags: [CD, PM] },
-    { name: 'Tagiz', url: 'https://tagiz.com/', tags: [PM] },
-    { name: 'Veriix', url: 'https://veriix.net/', tags: [PM] },
-    { name: 'Mum Wood', url: 'https://mumwood.co.il/', tags: [PM] },
-    { name: 'Pool &amp; Reef', url: 'https://pool-reef.co.il/', tags: [CD, PM] },
-    { name: 'Casinofy', url: 'https://www.casinofy.com/', tags: [PM] },
-    { name: 'Artemis', url: 'https://artemis-diamonds.co.il/', tags: [PM] },
-];
+const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
 
-const card = (p) => {
-    const tags = p.tags.map((t) => `<span class="tag">${t}</span>`).join('');
-    const inner = `<h4>${p.name}</h4><div class="panel-tags">${tags}</div>`;
-    return p.url
-        ? `<a href="${p.url}" target="_blank" rel="noopener" class="project-card">${inner}</a>`
-        : `<div class="project-card project-card-static">${inner}</div>`;
+const initials = (name) => name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+
+const card = (p, i) => {
+    const tags = p.tags.map((t) => `<span class="tag">${esc(t)}</span>`).join('');
+    const thumb = p.slug
+        ? `<img class="project-thumb" src="/thumbs/${p.slug}.jpg" alt="" loading="lazy" decoding="async" width="640" height="400">`
+        : `<div class="project-thumb project-thumb-blank"><span>${initials(p.name)}</span></div>`;
+    const hasDetail = p.role || p.challenge || p.outcome;
+    const detail = hasDetail ? `
+        <div class="project-detail">
+            ${p.role ? `<div class="project-detail-row"><span class="project-detail-k">Role</span><span>${esc(p.role)}</span></div>` : ''}
+            ${p.challenge ? `<div class="project-detail-row"><span class="project-detail-k">Challenge</span><span>${esc(p.challenge)}</span></div>` : ''}
+            ${p.outcome ? `<div class="project-detail-row"><span class="project-detail-k">Outcome</span><span>${esc(p.outcome)}</span></div>` : ''}
+            ${p.url ? `<a href="${p.url}" target="_blank" rel="noopener" class="project-visit">Visit the site &rarr;</a>` : ''}
+        </div>` : '';
+    return `
+        <article class="project-card" data-tags="${esc(p.tags.join('|'))}" data-i="${i}" ${hasDetail ? 'tabindex="0" role="button" aria-expanded="false"' : ''}>
+            <div class="project-thumb-wrap">${thumb}</div>
+            <div class="project-body">
+                <h4>${esc(p.name)}</h4>
+                <p class="project-what">${esc(p.what)}</p>
+                <div class="panel-tags">${tags}</div>
+            </div>
+            ${detail}
+        </article>`;
 };
+
+const chips = FILTERS.map((f, i) => `<button class="filter-chip ${i === 0 ? 'is-active' : ''}" data-filter="${esc(f.id)}">${esc(f.label)}</button>`).join('');
 
 export default {
     title: 'The Shipyard',
@@ -43,7 +41,11 @@ export default {
         </div>
 
         <div class="panel-section">
-            <h4>Ships launched</h4>
+            <div class="panel-h-row">
+                <h4>Ships launched</h4>
+                <span class="project-count">${PROJECTS.length} voyages</span>
+            </div>
+            <div class="filter-chips">${chips}</div>
             <div class="project-grid">
                 ${PROJECTS.map(card).join('')}
             </div>
@@ -83,4 +85,88 @@ export default {
             </div>
         </div>
     `,
+
+    /** Filters, expand/collapse and hover parallax. Returns an unmount fn. */
+    mount(root) {
+        const exp = Experience.getInstance();
+        const grid = root.querySelector('.project-grid');
+        const cards = [...root.querySelectorAll('.project-card')];
+        const chipEls = [...root.querySelectorAll('.filter-chip')];
+
+        const applyFilter = (id) => {
+            for (const c of chipEls) c.classList.toggle('is-active', c.dataset.filter === id);
+            let shown = 0;
+            for (const card of cards) {
+                const on = id === 'all' || card.dataset.tags.split('|').includes(id);
+                card.classList.toggle('is-hidden', !on);
+                if (on) shown++;
+            }
+            grid.classList.toggle('is-filtered', id !== 'all');
+            exp.emit('work:filter', id, shown);
+        };
+        const onChip = (e) => {
+            const chip = e.target.closest('.filter-chip');
+            if (!chip) return;
+            applyFilter(chip.dataset.filter);
+            if (exp.audio) exp.audio.playUIClick();
+        };
+
+        const toggle = (card) => {
+            const open = !card.classList.contains('is-open');
+            for (const c of cards) { c.classList.remove('is-open'); c.setAttribute('aria-expanded', 'false'); }
+            if (open) {
+                card.classList.add('is-open');
+                card.setAttribute('aria-expanded', 'true');
+                exp.emit('work:expand', PROJECTS[+card.dataset.i]?.name);
+                if (exp.audio) exp.audio.playUIClick();
+                requestAnimationFrame(() => card.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
+            }
+        };
+        const onGridClick = (e) => {
+            if (e.target.closest('a')) return; // let links be links
+            const card = e.target.closest('.project-card[role="button"]');
+            if (card) toggle(card);
+        };
+        const onGridKey = (e) => {
+            if (e.code !== 'Enter' && e.code !== 'Space') return;
+            const card = e.target.closest('.project-card[role="button"]');
+            if (!card) return;
+            e.preventDefault();
+            toggle(card);
+        };
+
+        // Hover parallax on the thumbnail (pointer devices only)
+        const fine = window.matchMedia('(pointer: fine)').matches;
+        const onMove = (e) => {
+            const card = e.target.closest('.project-card');
+            if (!card) return;
+            const img = card.querySelector('.project-thumb');
+            if (!img) return;
+            const r = card.getBoundingClientRect();
+            const nx = (e.clientX - r.left) / r.width - 0.5;
+            const ny = (e.clientY - r.top) / r.height - 0.5;
+            img.style.transform = `scale(1.08) translate(${-nx * 8}px, ${-ny * 8}px)`;
+        };
+        const onLeave = (e) => {
+            const card = e.target.closest('.project-card');
+            const img = card && card.querySelector('.project-thumb');
+            if (img) img.style.transform = '';
+        };
+
+        root.addEventListener('click', onChip);
+        grid.addEventListener('click', onGridClick);
+        grid.addEventListener('keydown', onGridKey);
+        if (fine) {
+            grid.addEventListener('pointermove', onMove);
+            grid.addEventListener('pointerout', onLeave);
+        }
+
+        return () => {
+            root.removeEventListener('click', onChip);
+            grid.removeEventListener('click', onGridClick);
+            grid.removeEventListener('keydown', onGridKey);
+            grid.removeEventListener('pointermove', onMove);
+            grid.removeEventListener('pointerout', onLeave);
+        };
+    },
 };

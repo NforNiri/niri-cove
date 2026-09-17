@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import gsap from 'gsap';
 import IslandBase from './IslandBase.js';
+import Slideshow from '../../Utils/Slideshow.js';
+import { VIDEOS, thumbUrl } from '../../UI/panels/CreativePanel.js';
 
 /**
  * Lantern Bay — an open-air stage strung with lanterns, a sailcloth screen
@@ -89,14 +91,18 @@ export default class CreativeIsland extends IslandBase {
                     float band = sin(vUv.x * 8.0 + uTime * 0.8) * 0.5 + 0.5;
                     float band2 = sin(vUv.y * 5.0 - uTime * 0.6 + vUv.x * 3.0) * 0.5 + 0.5;
                     vec3 proj = mix(vec3(1.0, 0.55, 0.26), vec3(0.37, 0.83, 0.76), band) * (0.5 + 0.5 * band2);
+                    float clothMix = 0.35;
                     if (uHasVideo > 0.5) {
-                        vec3 v = texture2D(uVideo, vec2(vUv.x, vUv.y)).rgb;
-                        proj = mix(proj, v * 1.15, 0.9);
+                        // Letterbox the 16:9 reel on the wider cloth
+                        vec2 vuv = vec2(vUv.x, (vUv.y - 0.5) * 1.02 + 0.5);
+                        vec3 v = texture2D(uVideo, vuv).rgb;
+                        proj = mix(proj * 0.35, v * 0.95, 0.92);
+                        clothMix = 0.1;
                     }
-                    float flicker = 0.92 + 0.08 * sin(uTime * 23.0) * sin(uTime * 7.0);
-                    float vignette = smoothstep(0.0, 0.15, vUv.x) * smoothstep(1.0, 0.85, vUv.x) * smoothstep(0.0, 0.15, vUv.y) * smoothstep(1.0, 0.85, vUv.y);
+                    float flicker = 0.94 + 0.06 * sin(uTime * 23.0) * sin(uTime * 7.0);
+                    float vignette = smoothstep(0.0, 0.12, vUv.x) * smoothstep(1.0, 0.88, vUv.x) * smoothstep(0.0, 0.12, vUv.y) * smoothstep(1.0, 0.88, vUv.y);
                     float show = max(uNight, uOn) * vignette;
-                    vec3 col = mix(cloth, cloth * 0.35 + proj * 1.15 * flicker, show);
+                    vec3 col = mix(cloth, cloth * clothMix + proj * flicker, show);
                     gl_FragColor = vec4(col, 1.0);
                     #include <tonemapping_fragment>
                     #include <colorspace_fragment>
@@ -120,6 +126,18 @@ export default class CreativeIsland extends IslandBase {
             });
         }
         if (this.experience.progress && this.experience.progress.hasQuest('projector')) this.setProjector(1);
+    }
+
+    /**
+     * The reel: YouTube stills of the creative work dissolve on the screen
+     * (HIGH tier only; LOW keeps the procedural colour wash). Loaded lazily the
+     * first time the screen is actually lit so idle visitors pay nothing.
+     */
+    ensureReel() {
+        if (this.reel) return;
+        const urls = VIDEOS.map((v) => thumbUrl(v.id));
+        this.reel = new Slideshow(urls, { width: 480, height: 280, hold: 4, fade: 1.1, fit: 'cover' });
+        this.screenMat.uniforms.uVideo.value = this.reel.texture;
     }
 
     setProjector(v) {
@@ -180,6 +198,21 @@ export default class CreativeIsland extends IslandBase {
         if (this.screenMat) {
             this.screenMat.uniforms.uTime.value = t;
             this.screenMat.uniforms.uNight.value = night;
+
+            // Reel on the sailcloth: only when lit, only on HIGH, only when near
+            const lit = Math.max(night, this.projectorOn || 0) > 0.05;
+            const high = this.experience.renderer && this.experience.renderer.quality === 'high';
+            const cam = this.experience.camera ? this.experience.camera.instance : null;
+            const near = cam ? Math.hypot(cam.position.x - this.screenWorld.x, cam.position.z - this.screenWorld.z) < 70 : true;
+            if (lit && high && near) {
+                this.ensureReel();
+                this.reel.enabled = true;
+                this.reel.update(Math.min(this.time.delta / 1000, 0.1));
+                this.screenMat.uniforms.uHasVideo.value = this.reel.ready ? 1 : 0;
+            } else {
+                if (this.reel) this.reel.enabled = false;
+                this.screenMat.uniforms.uHasVideo.value = high && this.reel && this.reel.ready ? 1 : 0;
+            }
         }
         const glow = Math.max(night, this.projectorOn || 0);
         if (this.lanterns) {

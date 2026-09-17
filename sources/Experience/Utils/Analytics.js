@@ -45,6 +45,10 @@ export default class Analytics {
         exp.on('teleport', (zone) => this.event('teleport', { zone }));
         exp.on('quality:change', (q) => this.event('quality', { tier: q }));
         exp.on('panel:link', (href) => this.event('outbound', { href }));
+        exp.on('panel:track', (what) => this.event(what));
+        exp.on('video:play', (id, title) => this.event('video_play', { id, title }));
+        exp.on('work:filter', (filter, shown) => this.event('work_filter', { filter, shown }));
+        exp.on('work:expand', (name) => this.event('work_expand', { name }));
 
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'hidden') this.sessionEnd();
